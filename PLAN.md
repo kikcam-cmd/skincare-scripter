@@ -176,7 +176,11 @@ create table corpus_chunks (
   embedding vector(1536) not null,      -- OpenAI text-embedding-3-small
   t_start numeric, t_end numeric,       -- videos only
   page_number int, section_label text,  -- knowledge only
-  chunk_kind text not null,             -- 'transcript' | 'breakdown_summary' | 'pdf_page' | 'md_section' | 'txt_block' | 'pasted_block'
+  chunk_kind text not null,
+    -- video kinds:    'transcript' | 'breakdown_summary' | 'male_creator_relevance'
+    --                | 'buyer_psych_levers' | 'pacing_notes' | 'visual_style_notes'
+    -- knowledge kinds:'pdf_page' | 'md_section' | 'txt_block' | 'pasted_block'
+  chunk_index int not null,             -- 0 for single-chunk kinds; sequential for multi-chunk
   metadata jsonb not null default '{}', -- niche_tag, view_count, source_label denorm for ranking
   created_at timestamptz not null default now(),
   check ((video_id is not null) <> (knowledge_item_id is not null))
@@ -187,6 +191,36 @@ create index on corpus_chunks (source_type);
 create index on corpus_chunks (video_id);
 create index on corpus_chunks (knowledge_item_id);
 create index on corpus_chunks ((metadata->>'niche_tag'));
+
+-- Safe-retry uniqueness: lets the embed step use ON CONFLICT DO NOTHING
+-- so a partial-batch crash can be retried without manual cleanup.
+create unique index corpus_chunks_video_unique
+  on corpus_chunks (video_id, chunk_kind, chunk_index)
+  where video_id is not null;
+create unique index corpus_chunks_knowledge_unique
+  on corpus_chunks (knowledge_item_id, chunk_kind, chunk_index)
+  where knowledge_item_id is not null;
+
+-- Per-step observability: every external call writes one row with tokens, duration,
+-- and dollar cost. Lets Cameron audit spend and find slow steps.
+create table pipeline_runs (
+  id uuid primary key default gen_random_uuid(),
+  video_id uuid references videos(id) on delete cascade,
+  knowledge_item_id uuid references knowledge_items(id) on delete cascade,
+  step text not null,           -- 'dedup' | 'transcribe' | 'extract_frames' | 'analyze' | 'embed' | 'parse_knowledge'
+  provider text not null,       -- 'groq' | 'claude' | 'openai' | 'ffmpeg' | 'unpdf'
+  model text,
+  input_tokens int,
+  output_tokens int,
+  duration_ms int,
+  cost_usd numeric(10, 6),
+  error text,
+  created_at timestamptz not null default now(),
+  check ((video_id is not null) or (knowledge_item_id is not null))
+);
+create index on pipeline_runs (video_id);
+create index on pipeline_runs (knowledge_item_id);
+create index on pipeline_runs (created_at);
 ```
 
 **Unified vs per-type:** unified `corpus_chunks`. Single-table semantic search is dramatically simpler and the nullable columns are cheap. Per-type would force UNION ALL at query time, which kills the hnsw plan.
@@ -280,20 +314,36 @@ export async function processVideo({ videoId }: { videoId: string }) {
   }
 
   // STEP 4: embeddings
-  if (!await db.corpus_chunks.anyFor(videoId)) {
+  if (!await db.corpus_chunks.allEmbedded(videoId)) {
     const [chunks, breakdown] = await Promise.all([
       db.transcript_chunks.byVideo(videoId),
       db.breakdowns.byVideo(videoId),
     ]);
+
+    // Each breakdown field becomes its own searchable chunk. This is what lets
+    // queries like "hooks that frame the problem as the viewer's fault" hit
+    // a male_creator_relevance chunk directly instead of a generic summary.
+    const breakdownChunks = [
+      { chunk_kind: 'breakdown_summary',     text: renderBreakdownSummary(breakdown) },
+      { chunk_kind: 'male_creator_relevance', text: breakdown.male_creator_relevance },
+      { chunk_kind: 'buyer_psych_levers',    text: breakdown.buyer_psychology_levers.join('\n') },
+      { chunk_kind: 'pacing_notes',          text: breakdown.pacing_notes },
+      { chunk_kind: 'visual_style_notes',    text: breakdown.visual_style_notes },
+    ].filter(c => c.text && c.text.trim().length > 0);
+
     const items = [
-      ...chunks.map(c => ({ chunk_kind: 'transcript', text: c.text, t_start: c.t_start, t_end: c.t_end })),
-      { chunk_kind: 'breakdown_summary', text: renderBreakdownSummary(breakdown) },
+      ...chunks.map((c, i) => ({ chunk_kind: 'transcript', chunk_index: i, text: c.text, t_start: c.t_start, t_end: c.t_end })),
+      ...breakdownChunks.map(c => ({ ...c, chunk_index: 0 })),
     ];
+
     const vectors = await openai.embeddings.create({
       model: 'text-embedding-3-small',
       input: items.map(i => i.text),
     });
-    await db.corpus_chunks.insertMany(items.map((i, idx) => ({
+
+    // ON CONFLICT DO NOTHING uses the (video_id, chunk_kind, chunk_index) unique index
+    // so a partial-batch crash can be retried without manual SQL cleanup.
+    await db.corpus_chunks.insertManyOnConflictDoNothing(items.map((i, idx) => ({
       source_type: 'video', video_id: videoId,
       embedding: vectors.data[idx].embedding,
       metadata: { niche_tag: v.niche_tag, view_count: v.view_count, posted_at: v.posted_at, creator_handle: v.creator_handle },
@@ -309,11 +359,13 @@ export async function processVideo({ videoId }: { videoId: string }) {
 
 The route wraps this in a try/catch and on throw writes `status='failed'` + `error_message=err.stack` so the UI can surface it.
 
+**Observability.** Every external call (Groq, Claude, OpenAI, ffmpeg, unpdf) is wrapped in a small helper that writes one `pipeline_runs` row with `step`, `provider`, `model`, `input_tokens`, `output_tokens`, `duration_ms`, `cost_usd`, and `error`. Cost is computed at write time using a hardcoded price table in `lib/pipeline/pricing.ts`. This gives Cameron a per-video spend audit and surfaces slow steps without standing up a metrics service.
+
 ### Retry / idempotency
 
 - **Step gating** by DB existence checks is the whole strategy. No locks needed for single-user.
 - `transcripts.video_id` and `breakdowns.video_id` are PKs → re-insert would FK-violate, but the existence check prevents the API call entirely.
-- `corpus_chunks` uses `anyFor(videoId)` count; if a partial embed run crashed mid-batch, manual cleanup (`delete from corpus_chunks where video_id=...`) before retry. Acceptable for v0.
+- `corpus_chunks` retry is safe by construction: the `(video_id, chunk_kind, chunk_index)` partial unique index lets the embed step use `ON CONFLICT DO NOTHING`. The completion gate is `allEmbedded(videoId)` — true when every expected `chunk_kind` has at least one row — so a partial-batch crash retries cleanly without manual SQL.
 - `content_hash` (sha256 of MP4) is computed **server-side as STEP 0** of the pipeline (after the MP4 is downloaded to `/tmp`). Browser-side hashing was rejected: it's slow on large MP4s and the wasted Storage write on a duplicate is cheap to throw away. If `findByHash` returns an existing in-progress or completed row, this video is marked `status='duplicate'` and the pipeline aborts — no Groq, Claude, or OpenAI calls are made.
 
 ### Vercel Fluid duration estimate (60s TikTok, 15 frames)
@@ -435,9 +487,18 @@ You will receive:
   of the form [FRAME @ t=X.Xs] so you can align what is SAID with what is SHOWN
 - Optional video metadata (creator handle, view count, niche tag, duration)
 
+If the transcript is empty (B-roll-only video, music-only, no speech), derive
+the breakdown entirely from the frames + metadata. Still fill every required
+span (hook, problem, twist, solution, cta) by inferring intent from the visual
+storytelling — TikToks routinely deliver complete persuasive arcs with zero
+spoken words. Use bracket-prefixed visual descriptions in the `text` fields,
+e.g. "[VISUAL: hand pumping cleanser onto the back of the other hand, slow
+zoom on the texture]". Set timestamps to the frame range that backs each beat.
+
 Always cross-reference transcript timestamps with the nearest frame timestamps.
 Every span you cite (hook, problem, twist, solution, cta) must include
-`t_start` and `t_end` that fall within the transcript's actual range.
+`t_start` and `t_end` that fall within the transcript's actual range (or the
+video's duration when the transcript is empty).
 
 Be specific. Avoid generic phrases like "engaging hook" — name the tactic
 ("pattern interrupt with a contrarian claim", "false-authority gambit",
@@ -496,6 +557,9 @@ const submitBreakdown = {
 
 Call config:
 ```ts
+// Anthropic limits per request: max 100 images, max 5 MB per image (post-base64-decode).
+// At our 768px JPEG output and a frame-count ceiling of 25 (§4), both limits have
+// ~4× headroom — but flag this if you ever raise the frame cap or output resolution.
 await anthropic.messages.create({
   model: 'claude-sonnet-4-6',
   max_tokens: 2000,
