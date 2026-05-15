@@ -6,9 +6,12 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 ## Where we are right now
 
-**Phase:** v0 planning is complete. **No code written yet.** Ready to start Slice 1 (`npx create-next-app@16`).
+**Phase:** **Slice 1 shipped locally.** First MP4 round-tripped end-to-end:
+upload → Groq Whisper → 15 frames via ffmpeg → Claude Sonnet 4.6 breakdown
+saved in `breakdowns`, video status=`analyzed`. Breakdown quality is high
+(specific tactic names, no generic phrases). Not deployed yet.
 
-**Last updated:** 2026-05-14
+**Last updated:** 2026-05-15
 
 ## Read these in order
 
@@ -51,9 +54,9 @@ Numbered list straight from `PLAN.md` "Risks & open questions" section. My recom
 
 | # | What ships | Status |
 |---|---|---|
-| 1 | Smallest E2E: upload one MP4, see one breakdown. Vercel access protection enabled before first deploy. | not started |
+| 1 | Smallest E2E: upload one MP4, see one breakdown. Vercel access protection enabled before first deploy. | **local ✓ — deploy still pending** |
 | 2 | Transcripts, frames, auto-trigger from upload | not started |
-| 3 | Idempotent pipeline + status tracking + retry button | not started |
+| 3 | Idempotent pipeline + status tracking + retry button | partial (retry button shipped, no step gating) |
 | 4 | Embeddings + similar-videos panel | not started |
 | 5 | Knowledge ingestion (PDF/MD/TXT/pasted) | not started |
 | 6 | Unified search across both corpora | not started |
@@ -61,50 +64,66 @@ Numbered list straight from `PLAN.md` "Risks & open questions" section. My recom
 
 ## Next concrete action
 
-Start Slice 1. The exact opening sequence:
+**Slice 1 is shipped locally.** Two paths from here:
+
+**A. Ship Slice 1 to Vercel** (close the loop on §9 ship criterion: "Vercel access protection enabled before first deploy"):
+1. `gh repo create` and push the branch (currently local-only — no remote)
+2. `npx vercel link` and import to Vercel project
+3. **Enable Vercel Authentication BEFORE first deploy** — URL holds Anthropic + Groq + Supabase service_role keys
+4. Push env vars to Vercel: `vercel env add` for all five secrets (Anthropic, Groq, Supabase URL/anon/service_role)
+5. Deploy and verify gating in incognito
+6. Upload one test MP4 through deployed URL — confirm `outputFileTracingIncludes` for `ffmpeg-static` works (it's the most likely Vercel-only break)
+
+**B. Start Slice 2** (transcripts, frames, auto-trigger) — adds `transcripts`, `transcript_chunks`, `key_frames` tables (migration `0002`) and persists what the Slice 1 pipeline currently throws away after the breakdown lands.
+
+Recommendation: **A first**, so the tool is actually usable from the phone before adding more pipeline complexity.
+
+## Supabase project (this project, NOT DBL)
+
+- ref: `yajpzqbrclsxhljialqs`
+- region: us-west-1
+- URL: `https://yajpzqbrclsxhljialqs.supabase.co`
+- bucket: `videos` (private, 500MB per-object limit). **Project-level upload limit was bumped to 500MB via dashboard** — required for files >50MB (Pro default).
+
+## Known issues / Slice 1 deferrals
+
+- **Pipeline is single-shot, not idempotent.** `Re-run pipeline` deletes the existing breakdown row and re-runs the full pipeline, re-billing Groq + Claude. Step gating + checkpointing is **Slice 3**.
+- **No transcripts/frames persistence.** Audio + frames live in `/tmp` for the function lifetime then get cleaned up. `transcripts`, `transcript_chunks`, `key_frames` tables are **Slice 2**.
+- **No dedup.** `content_hash` column exists but Slice 1 doesn't compute or check it. Re-uploading the same MP4 creates duplicate work. Slice 3 adds the sha256 STEP 0.
+- **`max_tokens=4000`** for Claude breakdown (bumped from 2000 after first run truncated `male_creator_relevance`). If future runs still truncate, raise further.
+- **Frame extraction is evenly-spaced via per-frame `-ss` seek**, not the hybrid scene-detect from PLAN §4. Slice 2 promotes to scene-detect when frames start getting persisted.
+
+## Required env vars
+
+```
+NEXT_PUBLIC_SUPABASE_URL=          # set in .env.local
+NEXT_PUBLIC_SUPABASE_ANON_KEY=     # set
+SUPABASE_SERVICE_ROLE_KEY=         # set
+ANTHROPIC_API_KEY=                 # set
+GROQ_API_KEY=                      # set
+# OPENAI_API_KEY=                  # Slice 4 (embeddings)
+```
+
+## Local dev quick reference
 
 ```bash
-cd ~/Projects/TikTok/skincare-scripter
-npx create-next-app@16 .          # scaffold into existing dir, keep .git
-# pick: TypeScript, Tailwind, App Router, no src/, no import alias change
-npx shadcn@latest init             # default settings, neutral color
+npm run dev                                          # next dev (port 3001 if 3000 busy)
+npm run process-video <video-uuid>                   # run pipeline standalone without HTTP
+npx tsc --noEmit                                     # type check
+npx next build                                       # catch deploy-time issues
 ```
-
-Then:
-1. Create a new Supabase project via the Supabase MCP (`mcp__claude_ai_Supabase__create_project`). **Do not reuse the DBL project** — that's a hard rule.
-2. Apply `db/migrations/0001_init.sql` from `PLAN.md` §2 (write the file from the SQL block in the plan).
-3. Set up `lib/supabase/{client,server,admin}.ts`.
-4. Build the `app/(upload)/page.tsx` shadcn dropzone + signed-URL flow.
-5. Build `app/api/videos/route.ts` with `export const maxDuration = 800` and the `after()`-wrapped pipeline call.
-6. Build `lib/pipeline/video.ts` per `PLAN.md` §3 pseudocode.
-7. Build `lib/prompts/breakdown.ts` per `PLAN.md` §5.
-8. **Enable Vercel Authentication on the project before first deploy** — the URL holds Anthropic + Groq + OpenAI keys.
-9. Verify in incognito that the deployed URL is gated.
-10. Upload one test MP4 end-to-end. Ship.
-
-## Required env vars (will need them by Slice 1)
-
-```
-ANTHROPIC_API_KEY=
-GROQ_API_KEY=
-OPENAI_API_KEY=
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-```
-
-Cameron has Anthropic and Supabase via existing accounts. Groq and OpenAI keys may need to be created — confirm before the first pipeline run, otherwise Slice 1 will fail at the Whisper step.
 
 ## Git history
 
 ```
+cc02a51 Add STATUS.md as session-handoff doc
 1a42593 Patch PLAN.md with five smaller cleanups
 9095a38 Patch PLAN.md with four pre-code fixes
 0385f65 Add v0 implementation plan from /ultraplan
 f89df31 Initial v0 spec for skincare-scripter
 ```
 
-The two patch commits document specific architectural decisions — read their commit messages if you're wondering why something in `PLAN.md` is shaped a particular way.
+Slice 1 code is unstaged — commit before deploy.
 
 ## Out of scope for v0 (do not build)
 
