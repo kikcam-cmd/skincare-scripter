@@ -13,13 +13,16 @@ flowchart TD
     A[Browser: shadcn dropzone] -->|1. signed-URL request| B[POST /api/uploads/sign]
     B -->|signed PUT URL| A
     A -->|2. direct PUT MP4| S[(Supabase Storage<br/>bucket: videos/)]
-    A -->|3. POST videoId+metadata| C[POST /api/videos]
+    A -->|3. POST videoId+metadata| C[POST /api/videos<br/>Node route, maxDuration=800]
     C -->|insert videos row<br/>status='uploaded'| DB[(Postgres)]
-    C -->|fire-and-forget fetch| P[POST /api/pipeline/video<br/>Vercel Fluid, maxDuration=800]
+    C -->|return videoId immediately| A
+    C -->|after: processVideo videoId| P[lib/pipeline/video<br/>same function lifetime]
 
-    subgraph Pipeline [Vercel Fluid Function]
+    subgraph Pipeline [Runs via after in same /api/videos lifetime]
         P --> P1[download MP4 -> /tmp]
-        P1 --> P2{transcript<br/>exists?}
+        P1 --> P0[sha256 hash + dedup check]
+        P0 -->|duplicate| PD[mark status=duplicate, abort]
+        P0 --> P2{transcript<br/>exists?}
         P2 -- no --> P3[ffmpeg audio extract]
         P3 --> P4[Groq Whisper turbo]
         P4 --> P5[(persist transcript<br/>+ chunks)]
@@ -57,16 +60,18 @@ flowchart TD
 | Step | Runtime | Reason |
 |---|---|---|
 | File upload | Browser → Supabase Storage direct (signed PUT) | Avoid Vercel 4.5 MB body limit on MP4s |
-| Row insert + pipeline trigger | Next.js Server Action (Edge) | Fast, just a DB insert + `fetch` |
-| Video pipeline | Vercel Fluid Function, `maxDuration = 800`, `runtime = 'nodejs'` | Needs ffmpeg-static binary + long-running ops |
-| Knowledge pipeline | Vercel Fluid Function, `maxDuration = 300`, Node | Same Node runtime; no ffmpeg |
+| Row insert + pipeline trigger | `POST /api/videos` Node route, `maxDuration = 800` | Inserts row, returns `{videoId}` immediately, then runs `processVideo()` in the same lifetime via `after()` from `next/server`. **Do not** fire-and-forget `fetch` to a separate route — Vercel can terminate the spawned request once the originating handler returns ([Vercel Functions API ref](https://vercel.com/docs/functions/functions-api-reference)). |
+| Video pipeline | Same `/api/videos` route via `after()`, `runtime = 'nodejs'` | ffmpeg-static + long-running ops fit comfortably in 800s. Manual retry exposed at `POST /api/pipeline/video/retry` calling `processVideo({videoId})` directly (also via `after()`). |
+| Knowledge pipeline | `POST /api/knowledge` Node route, `maxDuration = 300`, `after()` | Same pattern; no ffmpeg. |
 | UI reads | RSC + Supabase client | Standard |
 
 ### Failure boundaries and checkpoints
 
 Pipeline is **resumable by re-invocation**. Each step gates on "does my output already exist in DB?" before running. The only state lives in Postgres (`videos.status` enum + presence of child rows). No external queue.
 
-Checkpoints after: `transcripts` row inserted → `key_frames` rows inserted → `breakdowns` row inserted → `corpus_chunks` rows inserted. If the function dies mid-Claude-call, re-POST `/api/pipeline/video` with the same `videoId` and it resumes at the Claude step — Groq is not re-billed.
+**Triggering.** The pipeline is invoked via `import { after } from 'next/server'` inside `POST /api/videos`. The route inserts the row, returns `{videoId}` to the browser, and `after()` keeps the function lifetime open to run `processVideo({videoId})` under the route's `maxDuration = 800` budget. This is the supported Vercel pattern for post-response background work — a fire-and-forget `fetch` to a separate route is **not** reliable on Vercel because the spawned request can be terminated once the originating handler returns.
+
+Checkpoints after: `transcripts` row inserted → `key_frames` rows inserted → `breakdowns` row inserted → `corpus_chunks` rows inserted. If the function dies mid-Claude-call, the retry button hits `POST /api/pipeline/video/retry` (also wrapped in `after()`), which calls `processVideo({videoId})` and resumes at the Claude step — Groq is not re-billed.
 
 A `POST /api/pipeline/video/retry` exposed on the video detail page lets Cameron manually nudge a stuck/failed job.
 
@@ -82,7 +87,7 @@ create extension if not exists pgcrypto;
 
 create type pipeline_status as enum (
   'uploaded', 'transcribed', 'frames_extracted',
-  'analyzed', 'embedded', 'failed'
+  'analyzed', 'embedded', 'failed', 'duplicate'
 );
 
 create type source_type as enum ('video', 'knowledge');
@@ -214,6 +219,22 @@ export async function processVideo({ videoId }: { videoId: string }) {
   const duration = v.duration_seconds ?? await ffprobeDuration(localMp4);
   if (!v.duration_seconds) await db.videos.update(videoId, { duration_seconds: duration });
 
+  // STEP 0: dedup — hash on the server, not in the browser
+  if (!v.content_hash) {
+    const hash = await sha256File(localMp4);              // streaming sha256, ~constant memory
+    const dup = await db.videos.findByHash(hash, { excludeId: videoId, statusIn: ['embedded', 'analyzed', 'frames_extracted', 'transcribed'] });
+    if (dup) {
+      await db.videos.update(videoId, {
+        content_hash: hash,
+        status: 'duplicate',
+        error_message: `duplicate of ${dup.id}`,
+      });
+      await fs.rm(tmp, { recursive: true, force: true });
+      return { status: 'duplicate', duplicateOf: dup.id };
+    }
+    await db.videos.update(videoId, { content_hash: hash });
+  }
+
   // STEP 1: transcript
   if (!await db.transcripts.existsFor(videoId)) {
     const audio = await ffmpegExtractAudio(localMp4, `${tmp}/audio.mp3`);  // 16kHz mono
@@ -293,7 +314,7 @@ The route wraps this in a try/catch and on throw writes `status='failed'` + `err
 - **Step gating** by DB existence checks is the whole strategy. No locks needed for single-user.
 - `transcripts.video_id` and `breakdowns.video_id` are PKs → re-insert would FK-violate, but the existence check prevents the API call entirely.
 - `corpus_chunks` uses `anyFor(videoId)` count; if a partial embed run crashed mid-batch, manual cleanup (`delete from corpus_chunks where video_id=...`) before retry. Acceptable for v0.
-- `pgcrypto` `content_hash` (sha256 of MP4, computed during signed-URL handoff) prevents duplicate uploads.
+- `content_hash` (sha256 of MP4) is computed **server-side as STEP 0** of the pipeline (after the MP4 is downloaded to `/tmp`). Browser-side hashing was rejected: it's slow on large MP4s and the wasted Storage write on a duplicate is cheap to throw away. If `findByHash` returns an existing in-progress or completed row, this video is marked `status='duplicate'` and the pipeline aborts — no Groq, Claude, or OpenAI calls are made.
 
 ### Vercel Fluid duration estimate (60s TikTok, 15 frames)
 
@@ -330,15 +351,43 @@ Well under Fluid Pro's 800s ceiling. Hobby's 300s is also fine but recommend Pro
 
 **Recommendation: hybrid — scene-change primary, fixed-interval fallback, hard cap.**
 
-ffmpeg command (single pass):
+ffmpeg command — single pass that emits both the JPGs *and* a parseable timestamp log via the `metadata=print` filter:
+
 ```
-ffmpeg -i in.mp4 -vf "select='gt(scene,0.3)+eq(n,0)',scale=768:-1" -vsync vfr -frames:v 30 frame_%02d.jpg
+ffmpeg -i in.mp4 \
+  -vf "select='gt(scene,0.3)+eq(n,0)',scale=768:-1,metadata=print:file=scenes.txt" \
+  -vsync vfr -frames:v 30 frame_%02d.jpg
 ```
 
+`scenes.txt` looks like (one block per emitted frame, in order):
+```
+frame:0    pts:0      pts_time:0
+lavfi.scene_score=0
+frame:1    pts:74000  pts_time:2.467
+lavfi.scene_score=0.412
+...
+```
+
+The Nth `pts_time` block corresponds to `frame_NN.jpg` (1-indexed). Parse code:
+
+```ts
+async function parseSceneStamps(tmp: string): Promise<{ idx: number; t: number; path: string }[]> {
+  const text = await fs.readFile(`${tmp}/scenes.txt`, 'utf8');
+  const matches = [...text.matchAll(/pts_time:([\d.]+)/g)];
+  return matches.map((m, i) => ({
+    idx: i,
+    t: parseFloat(m[1]),
+    path: `${tmp}/frame_${String(i + 1).padStart(2, '0')}.jpg`,
+  }));
+}
+```
+
+Why `metadata=print` and not `showinfo`: `showinfo` writes to stderr in a verbose format that mixes with ffmpeg's own progress output and is brittle to ffmpeg version changes. `metadata=print:file=...` writes a clean separate file that's purpose-built for this.
+
 Then in code:
-1. Always force-include `t=0` and `t=duration-0.1`.
-2. If scene-detect returned ≥ `target` frames, evenly downsample to `target`.
-3. If it returned < `target`, top up with fixed 2s-interval frames until we hit `target`.
+1. Always force-include `t=0` and `t=duration-0.1` (in case scene-detect missed the open or close).
+2. If scene-detect returned ≥ `target` frames, evenly downsample to `target` while preserving the forced bookend frames.
+3. If it returned < `target`, top up with fixed 2s-interval frames (extracted via a second `ffmpeg -ss` pass) until we hit `target`.
 4. Sort by timestamp.
 
 **Why hybrid:** TikToks have fast cuts at narrative beats (hook ↔ problem ↔ twist ↔ CTA), so scene detection captures the structure for free. But hook/CTA are often static talking-head with no scene change, so the fallback guarantees coverage of the opening/closing frames where Cameron's analysis matters most.
@@ -589,9 +638,10 @@ final = (1 - cosine_distance)                            -- 0..1, primary
 - Supabase project created; `db/migrations/0001_init.sql` applied; `videos`, `breakdowns` only.
 - `lib/supabase/{client,server,admin}.ts` (anon for RSC reads, service_role for pipeline).
 - `app/(upload)/page.tsx`: shadcn dropzone → signed-URL upload → row insert.
-- `app/api/pipeline/video/route.ts`: blocking single-shot pipeline (no resume logic yet).
+- `app/api/videos/route.ts`: `export const maxDuration = 800`, inserts row, returns `{videoId}` immediately, then runs `processVideo({videoId})` via `after()` from `next/server`. Single-shot pipeline (no resume logic yet — that's Slice 3).
 - `app/videos/[id]/page.tsx`: shows raw breakdown JSON.
-- **Ship criterion:** Cameron uploads one MP4, sees structured breakdown rendered.
+- **Vercel access protection enabled before first deploy.** On Pro: enable [Vercel Authentication](https://vercel.com/docs/deployment-protection/methods-to-protect-deployments/vercel-authentication) (gates by Vercel SSO, free with Pro). On Hobby: enable [Password Protection](https://vercel.com/docs/deployment-protection/methods-to-protect-deployments/password-protection) (paid add-on) or wait until upgrading. The deployed URL holds Anthropic + Groq + OpenAI keys behind it — it must not be publicly hittable.
+- **Ship criterion:** Cameron uploads one MP4, sees a structured breakdown rendered. The deployed URL is gated by Vercel access protection — verified by opening it in an incognito window with no Vercel session.
 
 **Slice 2 — Transcripts, frames, auto-trigger.**
 - Add `transcripts`, `transcript_chunks`, `key_frames` tables (migration `0002`).
@@ -633,7 +683,7 @@ final = (1 - cosine_distance)                            -- 0..1, primary
 
 ## 10. LOCAL DEV STORY
 
-The pipeline is a plain async function. Make `processVideo({videaId})` and `processKnowledge({knowledgeItemId})` library exports in `lib/pipeline/*.ts`; the API routes are 5-line wrappers. Then:
+The pipeline is a plain async function. Make `processVideo({videoId})` and `processKnowledge({knowledgeItemId})` library exports in `lib/pipeline/*.ts`; the API routes are thin wrappers that handle the row insert + `after()` invocation. Then:
 
 ```
 next dev                                # full UI + APIs, cloud Supabase
