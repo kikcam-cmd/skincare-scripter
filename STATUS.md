@@ -6,13 +6,13 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 ## Where we are right now
 
-**Phase:** **Slice 2 shipped.** Pipeline now persists everything it
-produces: `transcripts` + `transcript_chunks` rows from Groq, frame JPGs
-in `videos/frames/{id}/` storage + `key_frames` rows. Video detail page
-is a real study tool — HTML5 player, frame strip thumbnails, transcript
-chunks with clickable timestamps that seek the video. Scene-detect frame
-extraction (PLAN §4) deferred — current evenly-spaced is fine. Step
-gating + idempotent retries are Slice 3 (next).
+**Phase:** **Slice 3 shipped.** Pipeline is now idempotent — each step
+(transcript / frames / breakdown) is gated by a DB existence check, so
+retry on a partially-failed run resumes without re-billing the steps
+that already completed. STEP 0 computes sha256 of the MP4 and marks
+the video `duplicate` if any prior successful upload has the same hash.
+Retry route no longer deletes anything; it just clears error state and
+re-invokes the pipeline.
 
 **Last updated:** 2026-05-16
 
@@ -59,7 +59,7 @@ Numbered list straight from `PLAN.md` "Risks & open questions" section. My recom
 |---|---|---|
 | 1 | Smallest E2E: upload one MP4, see one breakdown. Vercel access protection enabled before first deploy. | **shipped ✓** |
 | 2 | Transcripts, frames, auto-trigger from upload | **shipped ✓** (auto-trigger was already in Slice 1; persistence + study-tool UI added) |
-| 3 | Idempotent pipeline + status tracking + retry button | partial (retry button + status enum shipped, no step gating) |
+| 3 | Idempotent pipeline + status tracking + retry button | **shipped ✓** (step gates + STEP 0 sha256 dedup) |
 | 4 | Embeddings + similar-videos panel | not started |
 | 5 | Knowledge ingestion (PDF/MD/TXT/pasted) | not started |
 | 6 | Unified search across both corpora | not started |
@@ -67,13 +67,11 @@ Numbered list straight from `PLAN.md` "Risks & open questions" section. My recom
 
 ## Next concrete action
 
-**Slice 2 smoke test on Vercel** — open the prod URL, upload one fresh MP4, confirm:
-1. Video player loads (signed URL works for the MP4 in private bucket)
-2. Frame strip renders with thumbnails after frames extract
-3. Transcript chunks list renders and clicking a timestamp seeks the video
-4. Currently-playing chunk + frame are highlighted as the video plays
+**Slice 3 smoke test on Vercel** — two scenarios worth verifying:
+1. **Resume**: take an already-analyzed video, click "Re-run pipeline." Expected: status flickers `uploaded → analyzed` in a couple of seconds, no Groq/Claude calls (check Anthropic + Groq dashboards for no new requests in the window).
+2. **Dedup**: upload the same MP4 file again as a new upload. Expected: new video row is marked `status='duplicate'` with `error_message="duplicate of <original id>"`. No Groq/Claude calls.
 
-Then **start Slice 3** — idempotent pipeline + step gating + checkpointing. The retry button currently re-bills Groq + Claude on every click; Slice 3 makes the pipeline DB-existence-gated so a re-run resumes from where it failed. PLAN §3 "Retry / idempotency" has the full spec.
+Then **start Slice 4** — embeddings + similar-videos panel. Adds `corpus_chunks` table + pgvector hnsw index (migration `0003`), an OpenAI embed step at the end of the pipeline, and a "Similar videos" card on the detail page. PLAN §6 has the embeddings provider decision; needs `OPENAI_API_KEY` added to env vars.
 
 ## Supabase project (this project, NOT DBL)
 
@@ -99,11 +97,13 @@ If a custom domain is added later, the proxy still works on it — no Vercel-sid
 
 ## Known issues / Slice 1 deferrals
 
-- **Pipeline is single-shot, not idempotent.** `Re-run pipeline` deletes every child row (breakdowns + transcripts + transcript_chunks + key_frames) and the JPGs in `frames/{id}/` storage, then re-runs the full pipeline, re-billing Groq + Claude. Step gating + checkpointing is **Slice 3**.
+- ~~**Pipeline is single-shot, not idempotent.**~~ **Slice 3 ✓** — DB-existence-gated, retry resumes without re-billing completed steps.
 - ~~**No transcripts/frames persistence.**~~ **Slice 2 ✓** — both persisted, retry cleans them up.
-- **No dedup.** `content_hash` column exists but the pipeline doesn't compute or check it. Re-uploading the same MP4 creates duplicate work. Slice 3 adds the sha256 STEP 0.
+- ~~**No dedup.**~~ **Slice 3 ✓** — STEP 0 hashes the MP4 server-side; duplicates of prior successful uploads are marked `status='duplicate'`.
+- **Partial-write within a step is the remaining sharp edge.** If STEP 1 inserts the `transcripts` row but the `transcript_chunks` insert fails, retry skips STEP 1 (transcripts row exists) and STEP 3 reads zero chunks. Rare in practice; if it happens, the user has to manually delete the half-written `transcripts` row from the Supabase dashboard. A proper fix would be per-step upserts or a transactional RPC.
 - **`max_tokens=4000`** for Claude breakdown (bumped from 2000 after first run truncated `male_creator_relevance`). If future runs still truncate, raise further.
-- **Frame extraction is still evenly-spaced** via per-frame `-ss` seek, not the hybrid scene-detect from PLAN §4. Deferred from Slice 2 — promote if breakdown quality suffers on longer/montage-heavy videos.
+- **Frame extraction is still evenly-spaced** via per-frame `-ss` seek, not the hybrid scene-detect from PLAN §4. Deferred — promote if breakdown quality suffers on longer/montage-heavy videos.
+- **No "hard reset" button.** Retry resumes; there's no UI to force a full re-run from scratch. If you need it, manually delete the breakdown/transcripts/key_frames rows in the dashboard.
 
 ## Required env vars
 
@@ -129,7 +129,8 @@ npx next build                                       # catch deploy-time issues
 ## Git history
 
 ```
-<new>   Ship Slice 2: transcripts/frames persistence + study-tool UI
+<new>   Ship Slice 3: idempotent pipeline (step gates + STEP 0 sha256 dedup)
+5f29e55 Ship Slice 2: transcripts/frames persistence + study-tool UI
 b531024 Record Slice 1 Vercel deploy in STATUS.md
 ebb4094 Gate deployment with Basic Auth proxy
 66f5123 Ship Slice 1: MP4 upload to Claude breakdown pipeline
