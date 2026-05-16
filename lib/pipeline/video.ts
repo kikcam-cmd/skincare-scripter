@@ -75,15 +75,16 @@ export async function processVideo({ videoId }: { videoId: string }): Promise<vo
     // first means a duplicate aborts before any paid API call.
     if (!video.content_hash) {
       const hash = await sha256File(localMp4);
-      const { data: dup } = await supabase
+      const { data: dup, error: dupErr } = await supabase
         .from("videos")
         .select("id")
         .eq("content_hash", hash)
         .neq("id", videoId)
         .in("status", DEDUP_TARGET_STATUSES)
         .maybeSingle();
+      if (dupErr) throw new Error(`dedup query failed: ${dupErr.message}`);
       if (dup) {
-        await supabase
+        const { error: updErr } = await supabase
           .from("videos")
           .update({
             content_hash: hash,
@@ -91,9 +92,14 @@ export async function processVideo({ videoId }: { videoId: string }): Promise<vo
             error_message: `duplicate of ${dup.id}`,
           })
           .eq("id", videoId);
+        if (updErr) throw new Error(`duplicate-mark update failed: ${updErr.message}`);
         return;
       }
-      await supabase.from("videos").update({ content_hash: hash }).eq("id", videoId);
+      const { error: hashErr } = await supabase
+        .from("videos")
+        .update({ content_hash: hash })
+        .eq("id", videoId);
+      if (hashErr) throw new Error(`hash backfill failed: ${hashErr.message}`);
     }
 
     // STEP 1: transcript — gate by transcripts row existence

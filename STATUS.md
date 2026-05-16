@@ -6,13 +6,19 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 ## Where we are right now
 
-**Phase:** **Slice 3 shipped; Slice 4 paused on OpenAI key.** Pipeline
-is fully idempotent (STEP gates + sha256 STEP 0 dedup). Slice 4 plan
-locked in (see "Slice 4 plan — ready to resume" below) but execution
-blocked: `OPENAI_API_KEY` isn't in Vercel or `.env.local` yet, and the
-embed step + similar-videos UI both depend on it. **Next session:** add
-the key, then I can resume from the locked plan and ship Slice 4 in one
-pass.
+**Phase:** **Slice 3 shipped + smoke-tested; Slice 4 paused on OpenAI key.**
+Pipeline is fully idempotent (STEP gates + sha256 STEP 0 dedup). Both Slice 3
+smoke tests pass:
+- **Resume:** re-running an analyzed video skips every step (no Groq/Claude
+  calls, baseline counts unchanged).
+- **Dedup:** re-uploading an identical MP4 marks the new row
+  `status='duplicate'` with the canonical hash and `error_message='duplicate
+  of <id>'` before any external call.
+
+Slice 4 plan locked in (see "Slice 4 plan — ready to resume" below) but
+execution blocked: `OPENAI_API_KEY` isn't in Vercel or `.env.local` yet,
+and the embed step + similar-videos UI both depend on it. **Next session:**
+add the key, then resume from the locked plan and ship Slice 4 in one pass.
 
 **Last updated:** 2026-05-16
 
@@ -59,7 +65,7 @@ Numbered list straight from `PLAN.md` "Risks & open questions" section. My recom
 |---|---|---|
 | 1 | Smallest E2E: upload one MP4, see one breakdown. Vercel access protection enabled before first deploy. | **shipped ✓** |
 | 2 | Transcripts, frames, auto-trigger from upload | **shipped ✓** (auto-trigger was already in Slice 1; persistence + study-tool UI added) |
-| 3 | Idempotent pipeline + status tracking + retry button | **shipped ✓** (step gates + STEP 0 sha256 dedup) |
+| 3 | Idempotent pipeline + status tracking + retry button | **shipped ✓** (step gates + STEP 0 sha256 dedup; both smoke tests verified) |
 | 4 | Embeddings + similar-videos panel | not started |
 | 5 | Knowledge ingestion (PDF/MD/TXT/pasted) | not started |
 | 6 | Unified search across both corpora | not started |
@@ -73,23 +79,22 @@ Numbered list straight from `PLAN.md` "Risks & open questions" section. My recom
    - `.env.local` for `npm run dev`
 3. **Tell me to resume Slice 4.** The plan in the next section is locked — no re-deciding needed, just execute.
 
-Optional while waiting: **Slice 3 smoke test on Vercel**
-1. **Resume**: take an already-analyzed video, click "Re-run pipeline." Expected: status flickers `uploaded → analyzed` in a couple of seconds, no Groq/Claude calls (check Anthropic + Groq dashboards for no new requests in the window).
-2. **Dedup**: upload the same MP4 file again as a new upload. Expected: new video row is marked `status='duplicate'` with `error_message="duplicate of <original id>"`. No Groq/Claude calls.
+Slice 3 smoke tests already completed in the 2026-05-16 session; nothing
+to verify before Slice 4.
 
 ## Slice 4 plan — ready to resume
 
 Locked decisions (don't re-litigate):
 
 - **Embedding model:** OpenAI `text-embedding-3-small` (1536d). PLAN §6 defends this; re-embedding on provider switch is cheap at this scale.
-- **`corpus_chunks` is video-only for now.** PLAN §2 defines a unified `(video_id, knowledge_item_id)` schema, but `knowledge_items` doesn't exist until Slice 5. Adding the column + FK + check now would be deadweight. Slice 5's migration will `ALTER TABLE` to add `source_type` enum, `knowledge_item_id` column, FK, and adjust the exclusivity check. Migration 0003 ships the video-only shape.
+- **`corpus_chunks` is video-only for now.** PLAN §2 defines a unified `(video_id, knowledge_item_id)` schema, but `knowledge_items` doesn't exist until Slice 5. Adding the column + FK + check now would be deadweight. Slice 5's migration will `ALTER TABLE` to add `source_type` enum, `knowledge_item_id` column, FK, and adjust the exclusivity check. Migration 0004 ships the video-only shape (0003 was consumed by the dedup unique-index fix; see Git history).
 - **Embed step gating:** match the existing pattern — skip STEP 4 if any `corpus_chunks` row exists for `video_id`. Documented partial-write edge case is the same shape as Slice 3's transcript edge case; not fixing in Slice 4.
 - **What gets embedded per video:** every `transcript_chunks` row (one chunk per row, chunk_kind='transcript') plus one chunk per non-empty breakdown facet (chunk_kind ∈ `breakdown_summary`, `male_creator_relevance`, `buyer_psych_levers`, `pacing_notes`, `visual_style_notes`). PLAN §3 STEP 4 has the exact mapping.
 - **Insert semantics:** ON CONFLICT DO NOTHING on the partial unique index `(video_id, chunk_kind, chunk_index)` so a partial-batch crash retries cleanly.
 - **Similar-videos query:** SQL function `similar_videos(target_id uuid, k int default 5)` returning the k nearest *other* videos by cosine distance on the `breakdown_summary` chunk. Detail page calls the RPC, renders up to 5 cards (first-frame thumbnail + filename + niche_tag + similarity %). PLAN §6 confirms `breakdown_summary` as the unified semantic representation.
 
 Files to touch:
-- `db/migrations/0003_slice4.sql` — `create extension vector`; `corpus_chunks` table; hnsw index `using hnsw (embedding vector_cosine_ops)`; index on `(metadata->>'niche_tag')`; partial unique `(video_id, chunk_kind, chunk_index)`; `similar_videos` SQL function.
+- `db/migrations/0004_slice4.sql` — `create extension vector`; `corpus_chunks` table; hnsw index `using hnsw (embedding vector_cosine_ops)`; index on `(metadata->>'niche_tag')`; partial unique `(video_id, chunk_kind, chunk_index)`; `similar_videos` SQL function.
 - `package.json` — add `openai` dependency.
 - `lib/pipeline/video.ts` — STEP 4 block (embed + insert + status='embedded').
 - `app/videos/[id]/page.tsx` — fetch similar videos + render new card.
@@ -124,6 +129,8 @@ If a custom domain is added later, the proxy still works on it — no Vercel-sid
 - ~~**No transcripts/frames persistence.**~~ **Slice 2 ✓** — both persisted, retry cleans them up.
 - ~~**No dedup.**~~ **Slice 3 ✓** — STEP 0 hashes the MP4 server-side; duplicates of prior successful uploads are marked `status='duplicate'`.
 - **Partial-write within a step is the remaining sharp edge.** If STEP 1 inserts the `transcripts` row but the `transcript_chunks` insert fails, retry skips STEP 1 (transcripts row exists) and STEP 3 reads zero chunks. Rare in practice; if it happens, the user has to manually delete the half-written `transcripts` row from the Supabase dashboard. A proper fix would be per-step upserts or a transactional RPC.
+- **`videos` bucket needs `image/jpeg` in `allowed_mime_types`.** Frames live at `videos/frames/<id>/NN.jpg`; without this the bucket rejects frame uploads with `mime type image/jpeg is not supported` and STEP 2 fails. Set by dashboard SQL on 2026-05-16. Not in any migration file — re-apply manually on any fresh Supabase project: `update storage.buckets set allowed_mime_types = array['video/mp4','video/quicktime','video/webm','image/jpeg'] where name='videos';`.
+- ~~**Dedup STEP 0 silently no-op'd.**~~ **Fixed 2026-05-16** — the original partial unique index on `content_hash` forbade the duplicate-row update, and the supabase-js call swallowed the error. Migration 0003 widens the predicate to `WHERE content_hash IS NOT NULL AND status <> 'duplicate'`; STEP 0 updates now throw on error so a future schema/constraint mismatch lands the row in `status='failed'` instead of stalling at `uploaded`.
 - **`max_tokens=4000`** for Claude breakdown (bumped from 2000 after first run truncated `male_creator_relevance`). If future runs still truncate, raise further.
 - **Frame extraction is still evenly-spaced** via per-frame `-ss` seek, not the hybrid scene-detect from PLAN §4. Deferred — promote if breakdown quality suffers on longer/montage-heavy videos.
 - **No "hard reset" button.** Retry resumes; there's no UI to force a full re-run from scratch. If you need it, manually delete the breakdown/transcripts/key_frames rows in the dashboard.
@@ -152,7 +159,8 @@ npx next build                                       # catch deploy-time issues
 ## Git history
 
 ```
-<this commit> Record Slice 4 pause point in STATUS.md
+<this commit> Fix Slice 3 dedup unique-index + surface STEP 0 update errors
+df6fa74 Record Slice 4 pause point in STATUS.md
 006660e Ship Slice 3: idempotent pipeline (step gates + STEP 0 sha256 dedup)
 5f29e55 Ship Slice 2: transcripts/frames persistence + study-tool UI
 b531024 Record Slice 1 Vercel deploy in STATUS.md
