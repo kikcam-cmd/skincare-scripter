@@ -6,12 +6,14 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 ## Where we are right now
 
-**Phase:** **Slice 1 shipped locally.** First MP4 round-tripped end-to-end:
-upload → Groq Whisper → 15 frames via ffmpeg → Claude Sonnet 4.6 breakdown
-saved in `breakdowns`, video status=`analyzed`. Breakdown quality is high
-(specific tactic names, no generic phrases). Not deployed yet.
+**Phase:** **Slice 1 deployed to Vercel and gated.** Production URL is
+[skincare-scripter.vercel.app](https://skincare-scripter.vercel.app/),
+gated by Basic Auth in `proxy.ts` (Next 16 renamed `middleware` → `proxy`).
+Local pipeline still proven; **end-to-end on Vercel still needs Cameron's
+browser smoke test** — log in, upload one MP4, confirm `ffmpeg-static`
+runs under Vercel's filesystem.
 
-**Last updated:** 2026-05-15
+**Last updated:** 2026-05-16
 
 ## Read these in order
 
@@ -39,7 +41,7 @@ If you only have time for one: `PLAN.md`.
 
 Numbered list straight from `PLAN.md` "Risks & open questions" section. My recommended defaults shown — change if any of these aren't right:
 
-1. **Vercel plan** — Hobby (300s, free) is sufficient unless Cameron is already on Pro from another project. Pro buys 800s headroom + free Vercel Authentication. **Default: check current plan, lean Hobby unless on Pro for other reasons.**
+1. ~~**Vercel plan**~~ — Resolved. Team is on **Pro** (Plus). The pricing assumption in PLAN.md ("Pro buys free Vercel Authentication") turned out to be partly wrong — see "Vercel Standard Protection alias gap" below.
 2. **Frame budget** — start at 15 for ≤60s videos, 25 absolute max
 3. **PDF parser** — `unpdf` (preserves page boundaries for citation)
 4. **pgvector index** — hnsw (Supabase Postgres supports it)
@@ -54,7 +56,7 @@ Numbered list straight from `PLAN.md` "Risks & open questions" section. My recom
 
 | # | What ships | Status |
 |---|---|---|
-| 1 | Smallest E2E: upload one MP4, see one breakdown. Vercel access protection enabled before first deploy. | **local ✓ — deploy still pending** |
+| 1 | Smallest E2E: upload one MP4, see one breakdown. Vercel access protection enabled before first deploy. | **deployed + gated ✓ — Vercel MP4 smoke test pending** |
 | 2 | Transcripts, frames, auto-trigger from upload | not started |
 | 3 | Idempotent pipeline + status tracking + retry button | partial (retry button shipped, no step gating) |
 | 4 | Embeddings + similar-videos panel | not started |
@@ -64,19 +66,8 @@ Numbered list straight from `PLAN.md` "Risks & open questions" section. My recom
 
 ## Next concrete action
 
-**Slice 1 is shipped locally.** Two paths from here:
-
-**A. Ship Slice 1 to Vercel** (close the loop on §9 ship criterion: "Vercel access protection enabled before first deploy"):
-1. `gh repo create` and push the branch (currently local-only — no remote)
-2. `npx vercel link` and import to Vercel project
-3. **Enable Vercel Authentication BEFORE first deploy** — URL holds Anthropic + Groq + Supabase service_role keys
-4. Push env vars to Vercel: `vercel env add` for all five secrets (Anthropic, Groq, Supabase URL/anon/service_role)
-5. Deploy and verify gating in incognito
-6. Upload one test MP4 through deployed URL — confirm `outputFileTracingIncludes` for `ffmpeg-static` works (it's the most likely Vercel-only break)
-
-**B. Start Slice 2** (transcripts, frames, auto-trigger) — adds `transcripts`, `transcript_chunks`, `key_frames` tables (migration `0002`) and persists what the Slice 1 pipeline currently throws away after the breakdown lands.
-
-Recommendation: **A first**, so the tool is actually usable from the phone before adding more pipeline complexity.
+1. **Smoke-test on Vercel** — open the prod URL, log in with the Basic Auth password (in 1Password as `skincare-scripter APP_PASSWORD`), upload one MP4, confirm `ffmpeg-static` runs and a `breakdowns` row lands. **Most likely break:** Vercel function filesystem permissions or `outputFileTracingIncludes` not actually shipping the ffmpeg binary. If it breaks, check function runtime logs in the Vercel dashboard.
+2. **Then start Slice 2** — transcripts, frames, auto-trigger. Adds `transcripts`, `transcript_chunks`, `key_frames` tables (migration `0002`) and persists what the Slice 1 pipeline currently throws away after the breakdown lands.
 
 ## Supabase project (this project, NOT DBL)
 
@@ -84,6 +75,21 @@ Recommendation: **A first**, so the tool is actually usable from the phone befor
 - region: us-west-1
 - URL: `https://yajpzqbrclsxhljialqs.supabase.co`
 - bucket: `videos` (private, 500MB per-object limit). **Project-level upload limit was bumped to 500MB via dashboard** — required for files >50MB (Pro default).
+
+## Vercel Standard Protection alias gap (resolved by `proxy.ts`)
+
+Discovered during the first deploy: on Pro plan, Vercel "Standard Protection" via `ssoProtection.deploymentType: "all"` is **rejected by the API** with `"Vercel Authentication is not available on your plan for production deployments"`. Only the looser `"prod_deployment_urls_and_all_previews"` is accepted — and it leaves the production alias (`skincare-scripter.vercel.app`) **publicly reachable**. To fully gate the alias you need Advanced Deployment Protection (paid add-on, not on Pro).
+
+Fix: Basic Auth in `proxy.ts` (Next 16). One env var `APP_PASSWORD`, fail-closed (503 if env var missing). Browser handles the login UI via `WWW-Authenticate: Basic`. SSO Protection on previews is still enabled — belt and suspenders.
+
+If a custom domain is added later, the proxy still works on it — no Vercel-side reconfiguration needed.
+
+## Vercel project + deploy
+
+- Project: `skincare-scripter` (id `prj_4wSYPz1D02PYs47QS6r61QFSyrYC`) under team `kikuchicameron-7255's projects`
+- Production URL: https://skincare-scripter.vercel.app
+- GitHub: https://github.com/kikcam-cmd/skincare-scripter (private, push → auto-deploy)
+- Pipeline trigger: `POST /api/videos`. Function `maxDuration` is set to 800 in the route — Pro plan allows up to 800s under Fluid Compute. **Project default is still 300s; route-level override is what gives us 800.**
 
 ## Known issues / Slice 1 deferrals
 
@@ -117,14 +123,14 @@ npx next build                                       # catch deploy-time issues
 ## Git history
 
 ```
+ebb4094 Gate deployment with Basic Auth proxy
+66f5123 Ship Slice 1: MP4 upload to Claude breakdown pipeline
 cc02a51 Add STATUS.md as session-handoff doc
 1a42593 Patch PLAN.md with five smaller cleanups
 9095a38 Patch PLAN.md with four pre-code fixes
 0385f65 Add v0 implementation plan from /ultraplan
 f89df31 Initial v0 spec for skincare-scripter
 ```
-
-Slice 1 code is unstaged — commit before deploy.
 
 ## Out of scope for v0 (do not build)
 
