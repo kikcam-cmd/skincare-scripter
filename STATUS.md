@@ -6,13 +6,13 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 ## Where we are right now
 
-**Phase:** **Slice 3 shipped.** Pipeline is now idempotent — each step
-(transcript / frames / breakdown) is gated by a DB existence check, so
-retry on a partially-failed run resumes without re-billing the steps
-that already completed. STEP 0 computes sha256 of the MP4 and marks
-the video `duplicate` if any prior successful upload has the same hash.
-Retry route no longer deletes anything; it just clears error state and
-re-invokes the pipeline.
+**Phase:** **Slice 3 shipped; Slice 4 paused on OpenAI key.** Pipeline
+is fully idempotent (STEP gates + sha256 STEP 0 dedup). Slice 4 plan
+locked in (see "Slice 4 plan — ready to resume" below) but execution
+blocked: `OPENAI_API_KEY` isn't in Vercel or `.env.local` yet, and the
+embed step + similar-videos UI both depend on it. **Next session:** add
+the key, then I can resume from the locked plan and ship Slice 4 in one
+pass.
 
 **Last updated:** 2026-05-16
 
@@ -67,11 +67,34 @@ Numbered list straight from `PLAN.md` "Risks & open questions" section. My recom
 
 ## Next concrete action
 
-**Slice 3 smoke test on Vercel** — two scenarios worth verifying:
+1. **Get an OpenAI API key.** Sign in at https://platform.openai.com, create a key with embeddings access. Budget is microscopic (~$0.00006 per video per PLAN §3), default rate limits are fine.
+2. **Add it everywhere:**
+   - `vercel env add OPENAI_API_KEY` for production+preview+development (or via the API like the other secrets), encrypted
+   - `.env.local` for `npm run dev`
+3. **Tell me to resume Slice 4.** The plan in the next section is locked — no re-deciding needed, just execute.
+
+Optional while waiting: **Slice 3 smoke test on Vercel**
 1. **Resume**: take an already-analyzed video, click "Re-run pipeline." Expected: status flickers `uploaded → analyzed` in a couple of seconds, no Groq/Claude calls (check Anthropic + Groq dashboards for no new requests in the window).
 2. **Dedup**: upload the same MP4 file again as a new upload. Expected: new video row is marked `status='duplicate'` with `error_message="duplicate of <original id>"`. No Groq/Claude calls.
 
-Then **start Slice 4** — embeddings + similar-videos panel. Adds `corpus_chunks` table + pgvector hnsw index (migration `0003`), an OpenAI embed step at the end of the pipeline, and a "Similar videos" card on the detail page. PLAN §6 has the embeddings provider decision; needs `OPENAI_API_KEY` added to env vars.
+## Slice 4 plan — ready to resume
+
+Locked decisions (don't re-litigate):
+
+- **Embedding model:** OpenAI `text-embedding-3-small` (1536d). PLAN §6 defends this; re-embedding on provider switch is cheap at this scale.
+- **`corpus_chunks` is video-only for now.** PLAN §2 defines a unified `(video_id, knowledge_item_id)` schema, but `knowledge_items` doesn't exist until Slice 5. Adding the column + FK + check now would be deadweight. Slice 5's migration will `ALTER TABLE` to add `source_type` enum, `knowledge_item_id` column, FK, and adjust the exclusivity check. Migration 0003 ships the video-only shape.
+- **Embed step gating:** match the existing pattern — skip STEP 4 if any `corpus_chunks` row exists for `video_id`. Documented partial-write edge case is the same shape as Slice 3's transcript edge case; not fixing in Slice 4.
+- **What gets embedded per video:** every `transcript_chunks` row (one chunk per row, chunk_kind='transcript') plus one chunk per non-empty breakdown facet (chunk_kind ∈ `breakdown_summary`, `male_creator_relevance`, `buyer_psych_levers`, `pacing_notes`, `visual_style_notes`). PLAN §3 STEP 4 has the exact mapping.
+- **Insert semantics:** ON CONFLICT DO NOTHING on the partial unique index `(video_id, chunk_kind, chunk_index)` so a partial-batch crash retries cleanly.
+- **Similar-videos query:** SQL function `similar_videos(target_id uuid, k int default 5)` returning the k nearest *other* videos by cosine distance on the `breakdown_summary` chunk. Detail page calls the RPC, renders up to 5 cards (first-frame thumbnail + filename + niche_tag + similarity %). PLAN §6 confirms `breakdown_summary` as the unified semantic representation.
+
+Files to touch:
+- `db/migrations/0003_slice4.sql` — `create extension vector`; `corpus_chunks` table; hnsw index `using hnsw (embedding vector_cosine_ops)`; index on `(metadata->>'niche_tag')`; partial unique `(video_id, chunk_kind, chunk_index)`; `similar_videos` SQL function.
+- `package.json` — add `openai` dependency.
+- `lib/pipeline/video.ts` — STEP 4 block (embed + insert + status='embedded').
+- `app/videos/[id]/page.tsx` — fetch similar videos + render new card.
+- `app/videos/[id]/similar-videos.tsx` (new) — client-or-server card component.
+- `STATUS.md` — mark Slice 4 shipped, point to Slice 5.
 
 ## Supabase project (this project, NOT DBL)
 
@@ -114,7 +137,7 @@ SUPABASE_SERVICE_ROLE_KEY=         # set
 ANTHROPIC_API_KEY=                 # set
 GROQ_API_KEY=                      # set
 APP_PASSWORD=                      # Basic Auth gate (proxy.ts). Required — app returns 503 if missing.
-# OPENAI_API_KEY=                  # Slice 4 (embeddings)
+OPENAI_API_KEY=                    # Slice 4 (embeddings) — REQUIRED before resuming Slice 4. Not yet in Vercel.
 ```
 
 ## Local dev quick reference
@@ -129,7 +152,8 @@ npx next build                                       # catch deploy-time issues
 ## Git history
 
 ```
-<new>   Ship Slice 3: idempotent pipeline (step gates + STEP 0 sha256 dedup)
+<this commit> Record Slice 4 pause point in STATUS.md
+006660e Ship Slice 3: idempotent pipeline (step gates + STEP 0 sha256 dedup)
 5f29e55 Ship Slice 2: transcripts/frames persistence + study-tool UI
 b531024 Record Slice 1 Vercel deploy in STATUS.md
 ebb4094 Gate deployment with Basic Auth proxy
