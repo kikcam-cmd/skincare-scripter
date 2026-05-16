@@ -6,12 +6,13 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 ## Where we are right now
 
-**Phase:** **Slice 1 deployed to Vercel and gated.** Production URL is
-[skincare-scripter.vercel.app](https://skincare-scripter.vercel.app/),
-gated by Basic Auth in `proxy.ts` (Next 16 renamed `middleware` → `proxy`).
-Local pipeline still proven; **end-to-end on Vercel still needs Cameron's
-browser smoke test** — log in, upload one MP4, confirm `ffmpeg-static`
-runs under Vercel's filesystem.
+**Phase:** **Slice 2 shipped.** Pipeline now persists everything it
+produces: `transcripts` + `transcript_chunks` rows from Groq, frame JPGs
+in `videos/frames/{id}/` storage + `key_frames` rows. Video detail page
+is a real study tool — HTML5 player, frame strip thumbnails, transcript
+chunks with clickable timestamps that seek the video. Scene-detect frame
+extraction (PLAN §4) deferred — current evenly-spaced is fine. Step
+gating + idempotent retries are Slice 3 (next).
 
 **Last updated:** 2026-05-16
 
@@ -56,9 +57,9 @@ Numbered list straight from `PLAN.md` "Risks & open questions" section. My recom
 
 | # | What ships | Status |
 |---|---|---|
-| 1 | Smallest E2E: upload one MP4, see one breakdown. Vercel access protection enabled before first deploy. | **deployed + gated ✓ — Vercel MP4 smoke test pending** |
-| 2 | Transcripts, frames, auto-trigger from upload | not started |
-| 3 | Idempotent pipeline + status tracking + retry button | partial (retry button shipped, no step gating) |
+| 1 | Smallest E2E: upload one MP4, see one breakdown. Vercel access protection enabled before first deploy. | **shipped ✓** |
+| 2 | Transcripts, frames, auto-trigger from upload | **shipped ✓** (auto-trigger was already in Slice 1; persistence + study-tool UI added) |
+| 3 | Idempotent pipeline + status tracking + retry button | partial (retry button + status enum shipped, no step gating) |
 | 4 | Embeddings + similar-videos panel | not started |
 | 5 | Knowledge ingestion (PDF/MD/TXT/pasted) | not started |
 | 6 | Unified search across both corpora | not started |
@@ -66,8 +67,13 @@ Numbered list straight from `PLAN.md` "Risks & open questions" section. My recom
 
 ## Next concrete action
 
-1. **Smoke-test on Vercel** — open the prod URL, log in with the Basic Auth password (in 1Password as `skincare-scripter APP_PASSWORD`), upload one MP4, confirm `ffmpeg-static` runs and a `breakdowns` row lands. **Most likely break:** Vercel function filesystem permissions or `outputFileTracingIncludes` not actually shipping the ffmpeg binary. If it breaks, check function runtime logs in the Vercel dashboard.
-2. **Then start Slice 2** — transcripts, frames, auto-trigger. Adds `transcripts`, `transcript_chunks`, `key_frames` tables (migration `0002`) and persists what the Slice 1 pipeline currently throws away after the breakdown lands.
+**Slice 2 smoke test on Vercel** — open the prod URL, upload one fresh MP4, confirm:
+1. Video player loads (signed URL works for the MP4 in private bucket)
+2. Frame strip renders with thumbnails after frames extract
+3. Transcript chunks list renders and clicking a timestamp seeks the video
+4. Currently-playing chunk + frame are highlighted as the video plays
+
+Then **start Slice 3** — idempotent pipeline + step gating + checkpointing. The retry button currently re-bills Groq + Claude on every click; Slice 3 makes the pipeline DB-existence-gated so a re-run resumes from where it failed. PLAN §3 "Retry / idempotency" has the full spec.
 
 ## Supabase project (this project, NOT DBL)
 
@@ -93,11 +99,11 @@ If a custom domain is added later, the proxy still works on it — no Vercel-sid
 
 ## Known issues / Slice 1 deferrals
 
-- **Pipeline is single-shot, not idempotent.** `Re-run pipeline` deletes the existing breakdown row and re-runs the full pipeline, re-billing Groq + Claude. Step gating + checkpointing is **Slice 3**.
-- **No transcripts/frames persistence.** Audio + frames live in `/tmp` for the function lifetime then get cleaned up. `transcripts`, `transcript_chunks`, `key_frames` tables are **Slice 2**.
-- **No dedup.** `content_hash` column exists but Slice 1 doesn't compute or check it. Re-uploading the same MP4 creates duplicate work. Slice 3 adds the sha256 STEP 0.
+- **Pipeline is single-shot, not idempotent.** `Re-run pipeline` deletes every child row (breakdowns + transcripts + transcript_chunks + key_frames) and the JPGs in `frames/{id}/` storage, then re-runs the full pipeline, re-billing Groq + Claude. Step gating + checkpointing is **Slice 3**.
+- ~~**No transcripts/frames persistence.**~~ **Slice 2 ✓** — both persisted, retry cleans them up.
+- **No dedup.** `content_hash` column exists but the pipeline doesn't compute or check it. Re-uploading the same MP4 creates duplicate work. Slice 3 adds the sha256 STEP 0.
 - **`max_tokens=4000`** for Claude breakdown (bumped from 2000 after first run truncated `male_creator_relevance`). If future runs still truncate, raise further.
-- **Frame extraction is evenly-spaced via per-frame `-ss` seek**, not the hybrid scene-detect from PLAN §4. Slice 2 promotes to scene-detect when frames start getting persisted.
+- **Frame extraction is still evenly-spaced** via per-frame `-ss` seek, not the hybrid scene-detect from PLAN §4. Deferred from Slice 2 — promote if breakdown quality suffers on longer/montage-heavy videos.
 
 ## Required env vars
 
@@ -123,6 +129,8 @@ npx next build                                       # catch deploy-time issues
 ## Git history
 
 ```
+<new>   Ship Slice 2: transcripts/frames persistence + study-tool UI
+b531024 Record Slice 1 Vercel deploy in STATUS.md
 ebb4094 Gate deployment with Basic Auth proxy
 66f5123 Ship Slice 1: MP4 upload to Claude breakdown pipeline
 cc02a51 Add STATUS.md as session-handoff doc

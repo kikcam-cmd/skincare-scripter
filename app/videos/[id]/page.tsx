@@ -1,12 +1,15 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RefreshOnPending } from "./refresh-on-pending";
+import { StudyTool } from "./study-tool";
 
 const TERMINAL: ReadonlyArray<string> = ["analyzed", "embedded", "failed", "duplicate"];
+const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour — page re-renders refresh.
 
 export default async function VideoDetailPage({
   params,
@@ -23,11 +26,46 @@ export default async function VideoDetailPage({
     .single();
   if (!video) notFound();
 
-  const { data: breakdown } = await supabase
-    .from("breakdowns")
-    .select("*")
-    .eq("video_id", id)
-    .maybeSingle();
+  const [{ data: breakdown }, { data: chunks }, { data: frames }] = await Promise.all([
+    supabase.from("breakdowns").select("*").eq("video_id", id).maybeSingle(),
+    supabase
+      .from("transcript_chunks")
+      .select("id, chunk_index, text, t_start, t_end")
+      .eq("video_id", id)
+      .order("chunk_index", { ascending: true }),
+    supabase
+      .from("key_frames")
+      .select("frame_index, t_seconds, storage_path")
+      .eq("video_id", id)
+      .order("frame_index", { ascending: true }),
+  ]);
+
+  // Signed URLs require the service_role key (videos bucket is private). The
+  // whole app is behind a Basic Auth proxy so generating these in an RSC is OK.
+  const admin = createAdminClient();
+  const videoUrlPromise = admin.storage
+    .from("videos")
+    .createSignedUrl(video.storage_path, SIGNED_URL_TTL_SECONDS);
+  const framePaths = (frames ?? []).map((f) => f.storage_path);
+  const framesUrlsPromise =
+    framePaths.length > 0
+      ? admin.storage.from("videos").createSignedUrls(framePaths, SIGNED_URL_TTL_SECONDS)
+      : Promise.resolve({ data: [] as { signedUrl: string }[], error: null });
+  const [videoUrlRes, framesUrlsRes] = await Promise.all([videoUrlPromise, framesUrlsPromise]);
+
+  const videoUrl = videoUrlRes.data?.signedUrl ?? null;
+  const signedFrames = (frames ?? []).map((f, i) => ({
+    frame_index: f.frame_index,
+    t_seconds: Number(f.t_seconds),
+    signed_url: framesUrlsRes.data?.[i]?.signedUrl ?? "",
+  }));
+  const typedChunks = (chunks ?? []).map((c) => ({
+    id: c.id as string,
+    chunk_index: c.chunk_index as number,
+    text: c.text as string,
+    t_start: Number(c.t_start),
+    t_end: Number(c.t_end),
+  }));
 
   const isPending = !TERMINAL.includes(video.status);
 
@@ -59,7 +97,11 @@ export default async function VideoDetailPage({
         </Card>
       )}
 
-      {isPending && (
+      {videoUrl && (
+        <StudyTool videoUrl={videoUrl} chunks={typedChunks} frames={signedFrames} />
+      )}
+
+      {isPending && !breakdown && (
         <Card>
           <CardContent className="py-8 text-center text-sm text-muted-foreground">
             Pipeline running… (page auto-refreshes every 3s)

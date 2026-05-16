@@ -20,8 +20,9 @@ type GroqVerboseTranscription = {
   words?: GroqWord[];
 };
 
-// Slice 1 pipeline: single-shot, no resume logic, no transcript/frame persistence.
-// Slice 2 adds transcripts + key_frames tables; Slice 3 adds step gating + retry.
+// Slice 2 pipeline: single-shot (no step gating yet — that's Slice 3), but now
+// persists everything the pipeline produces: transcripts, transcript_chunks,
+// key_frames rows + the JPGs in the `videos` bucket under `frames/{id}/`.
 export async function processVideo({ videoId }: { videoId: string }): Promise<void> {
   const supabase = createAdminClient();
 
@@ -65,27 +66,75 @@ export async function processVideo({ videoId }: { videoId: string }): Promise<vo
       timestamp_granularities: ["word"],
     })) as unknown as GroqVerboseTranscription;
 
+    // 4. chunk transcript by word window — used both for Claude prompt and
+    // as the row shape for `transcript_chunks`.
+    const transcriptLines = chunkByWordWindow(transcription.words ?? [], 600);
+
+    // 5. persist transcript + chunks. Supabase JS has no tx primitive, so this
+    // is sequential. Slice 3 will add step gating; for now the retry route
+    // deletes these rows before re-running.
+    const { error: tErr } = await supabase.from("transcripts").insert({
+      video_id: videoId,
+      full_text: transcription.text,
+      language: transcription.language ?? null,
+      raw_groq_response: transcription as unknown as Record<string, unknown>,
+    });
+    if (tErr) throw new Error(`transcripts insert failed: ${tErr.message}`);
+
+    if (transcriptLines.length > 0) {
+      const { error: tcErr } = await supabase.from("transcript_chunks").insert(
+        transcriptLines.map((line, idx) => ({
+          video_id: videoId,
+          chunk_index: idx,
+          text: line.text,
+          t_start: line.t_start,
+          t_end: line.t_end,
+        })),
+      );
+      if (tcErr) throw new Error(`transcript_chunks insert failed: ${tcErr.message}`);
+    }
+
     await supabase
       .from("videos")
       .update({ status: "transcribed" })
       .eq("id", videoId);
 
-    // 4. chunk transcript by word window for Claude prompt
-    const transcriptLines = chunkByWordWindow(transcription.words ?? [], 600);
-
-    // 5. frames
+    // 6. frames — extract to /tmp, then in parallel upload JPGs to storage
+    // and read base64 for the Claude vision call.
     const target = frameTargetCount(duration);
     const frames = await extractFrames(localMp4, tmp, duration, target);
-    const frameBase64 = await Promise.all(
-      frames.map(async (f) => (await fs.readFile(f.path)).toString("base64")),
+
+    const frameUploads = frames.map(async (f) => {
+      const storagePath = `frames/${videoId}/${String(f.idx).padStart(2, "0")}.jpg`;
+      const buf = await fs.readFile(f.path);
+      const { error: upErr } = await supabase.storage
+        .from("videos")
+        .upload(storagePath, buf, {
+          contentType: "image/jpeg",
+          upsert: true,
+        });
+      if (upErr) throw new Error(`frame upload failed (${storagePath}): ${upErr.message}`);
+      return { idx: f.idx, t: f.t, storagePath, base64: buf.toString("base64") };
+    });
+    const uploaded = await Promise.all(frameUploads);
+    const frameBase64 = uploaded.map((u) => u.base64);
+
+    const { error: kfErr } = await supabase.from("key_frames").insert(
+      uploaded.map((u) => ({
+        video_id: videoId,
+        frame_index: u.idx,
+        t_seconds: u.t,
+        storage_path: u.storagePath,
+      })),
     );
+    if (kfErr) throw new Error(`key_frames insert failed: ${kfErr.message}`);
 
     await supabase
       .from("videos")
       .update({ status: "frames_extracted" })
       .eq("id", videoId);
 
-    // 6. Claude breakdown
+    // 7. Claude breakdown
     const anthropic = new Anthropic();
     const { parsed, raw } = await callClaudeBreakdown(anthropic, {
       metadata: {
@@ -98,7 +147,7 @@ export async function processVideo({ videoId }: { videoId: string }): Promise<vo
       frames: frames.map((f, i) => ({ t_seconds: f.t, base64: frameBase64[i] })),
     });
 
-    // 7. persist breakdown
+    // 8. persist breakdown
     const { error: bErr } = await supabase.from("breakdowns").insert({
       video_id: videoId,
       hook: parsed.hook,
