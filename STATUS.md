@@ -101,6 +101,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=     # set
 SUPABASE_SERVICE_ROLE_KEY=         # set
 ANTHROPIC_API_KEY=                 # set
 GROQ_API_KEY=                      # set
+APP_PASSWORD=                      # Basic Auth gate (proxy.ts). Required — app returns 503 if missing.
 # OPENAI_API_KEY=                  # Slice 4 (embeddings)
 ```
 
