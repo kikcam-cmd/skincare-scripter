@@ -85,12 +85,14 @@ Auth: none for v0 (single-user, possibly behind Vercel deployment protection).
 
 ## Open questions for the planner
 
-1. **Embeddings provider** — OpenAI `text-embedding-3-small` is cheapest/fastest but introduces another vendor. Voyage AI Claude-aligned alternative? Local with Transformers.js? Recommend.
-2. **Frame extraction count vs cost** — Claude vision charges per image. Is 15 frames per ~30s video the right ceiling, or should we be smarter (scene-change detection)?
-3. **Vercel Fluid duration** — confirm a 30-60s TikTok pipeline (download from storage → ffmpeg → Groq → Claude vision call with 15 frames → write back) fits comfortably under the function timeout.
-4. **Idempotency / retries** — pipeline is multi-step; if Claude call fails after Groq succeeds, how do we resume without re-billing transcription?
-5. **Schema design** — should `videos`, `knowledge_items`, and a unified `corpus_chunks` table for embeddings be the right shape? Or per-type embedding tables?
-6. **Local dev parity** — is there a sane way to run the ffmpeg + Groq pipeline locally without spinning up Vercel emulators every time?
+*All resolved during v0 build (Slices 1–7, 2026-05-16/17). Kept here as a history pointer; see `STATUS.md` for what shipped.*
+
+1. ~~**Embeddings provider**~~ — OpenAI `text-embedding-3-small` (1536d) shipped. Justified in PLAN §6.
+2. ~~**Frame extraction count vs cost**~~ — Settled at 15 frames for ≤60s, 25 absolute max. Hybrid scene-detect deferred (evenly-spaced is adequate so far).
+3. ~~**Vercel Fluid duration**~~ — Confirmed on Pro: route-level `maxDuration = 800` accommodates the pipeline comfortably (typical 60s TikTok takes 40–75s end-to-end).
+4. ~~**Idempotency / retries**~~ — Slice 3: every step (transcript / frames / breakdown / embed) is gated by a DB existence check; retry resumes without re-billing completed work. STEP 0 sha256 dedup catches re-uploads before any paid API call.
+5. ~~**Schema design**~~ — Unified `corpus_chunks` with `source_type` discriminator (video|knowledge) won. Single hnsw plan beats per-type UNION ALL. Slice 5 added `knowledge_item_id` + page/section columns via ALTER.
+6. ~~**Local dev parity**~~ — `processVideo()` / `processKnowledge()` are plain async function library exports; `scripts/process-{video,knowledge}.ts` runs them headless via `npm run process-*`. No Vercel emulator needed.
 
 ## Decisions already locked
 

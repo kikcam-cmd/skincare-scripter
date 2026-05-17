@@ -6,49 +6,30 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 ## Where we are right now
 
-**Phase:** **Slice 7 fully shipped — v0 corpus-building half is
-feature-complete.** Browser-verified on prod (deploy
-`dpl_Fix4cquWThjUkzKaLqtKEH7etvD2` / commit `0b2ca3b`). Final round
-added clickable timestamps in BreakdownSummary spans (each of
-hook/problem/twist/solution/cta is now a SeekButton that fires a
-CustomEvent the StudyTool listens for — clean separation, no need to
-lift the breakdown card into a client component) and promoted
-source-trust constants from `lib/search/trust.ts` to a real
-`source_trust` DB table (migration 0009, seeded with the existing
-values). New `/trust` admin page lists every label in the table OR
-used by a knowledge item with per-row editable weight + notes.
-PATCH /api/trust upserts; rank.ts now takes the trust map as a
-parameter (stays pure); query.ts loads the map in parallel with the
-OpenAI embedding so search adds zero round-trip overhead.
+**Phase:** **v0 corpus-building half is feature-complete on prod**
+(latest commit `c6eb1e7`, deploy `dpl_DouFEUi6ezdoaBsHvdZNac317KUJ`
+READY, working tree clean). Slices 1–7 shipped:
+idempotent pipeline + sha256 dedup; transcripts/frames persistence
++ study-tool UI; Claude vision breakdown; embeddings + similar-videos
+panel; knowledge ingestion (PDF/MD/TXT/pasted); metadata pivot
+(brand/product/creator_gender/user_notes/ai_tags); unified semantic
+search across both corpora with URL-driven filter pills; `?t=N` and
+`?chunk=N` deep links; inline editable metadata on video detail with
+corpus_chunks.metadata propagation; clickable BreakdownSummary
+timestamps; DB-backed source-trust admin (`/trust`).
 
-Semantic search across
-both corpora (videos + knowledge) via a single `search_corpus(query_embedding, ...filters)` RPC
-that LEFT JOINs `videos` and `knowledge_items` so the caller gets card-
-rendering + ranking columns in one round trip. supabase-js can't express
-the `<=>` operator through PostgREST, so an RPC is the only practical
-shape (mirrors Slice 4's `similar_videos`). In-app re-ranking applies
-the PLAN §8 weighted formula (cosine + recency + virality + source_trust).
+Next session starts **Phase 2: script generator** — the RAG-driven
+half this corpus was built to feed. See "Next concrete action" below.
 
-URL-driven filter pills (no client state): source_type, niche_tag,
-creator_gender, brand, product_name, ai_tag, source_label. Pill options
-are loaded from distinct values in `videos` + `knowledge_items`.
-
-Result cards emit deep-link URLs (`/videos/[id]?t=N`,
-`/knowledge/[id]?chunk=N`) but seek-on-mount / scroll-to-chunk wiring
-is deferred to Slice 7 (which owns "clickable timestamps").
-
-Smoke-tested against the prod DB: self-similarity round-trip = 1.0000;
-ai_tag/brand filter restricts to expected rows.
-
-**Last updated:** 2026-05-16 (Slice 6 unified search ship)
+**Last updated:** 2026-05-17 (Slice 7 fully shipped, v0 close-out)
 
 ## Read these in order
 
-1. **`SPEC.md`** — the brief. Positioning, scope, locked decisions. Doesn't change often.
-2. **`PLAN.md`** — the v0 implementation plan with all nine pre-code fixes already patched in. This is the build instruction. **Read this fully before writing any code.**
+1. **`SPEC.md`** — the brief. Positioning, scope, locked decisions. Doesn't change often. SPEC's "Out of scope for v0 (future phases)" section is the Phase 2 starting point.
+2. **`PLAN.md`** — the **v0** implementation plan (now historical). Carries a "partially superseded by Slice 5.5" banner; the architecture, pipeline shape, embedding choice, and search §8 are still accurate; the prompt content and breakdown schema have moved on. **Phase 2 will need its own plan doc** — there is none yet.
 3. **This file** — current state + next action.
 
-If you only have time for one: `PLAN.md`.
+If you only have time for one when picking up v0 context: `PLAN.md`. For Phase 2 kickoff: `SPEC.md` §"Out of scope for v0" + this file's "Next concrete action".
 
 ## What's locked (don't re-litigate)
 
@@ -64,20 +45,20 @@ If you only have time for one: `PLAN.md`.
 - **Pipeline triggering:** `POST /api/videos` runs `processVideo()` via `after()` from `next/server` in the same function lifetime, `maxDuration = 800`. Do **not** use a fire-and-forget `fetch` to a separate route.
 - **Dedup:** sha256 computed server-side as STEP 0 of pipeline, not in the browser.
 
-## What's still open (Cameron decides before / during Slice 1)
+## v0 open questions from PLAN — all resolved during build
 
-Numbered list straight from `PLAN.md` "Risks & open questions" section. My recommended defaults shown — change if any of these aren't right:
+Numbered list from `PLAN.md` "Risks & open questions". Resolutions noted; left here as a history pointer for picking up v0 context. **None of these are open anymore.**
 
 1. ~~**Vercel plan**~~ — Resolved. Team is on **Pro** (Plus). The pricing assumption in PLAN.md ("Pro buys free Vercel Authentication") turned out to be partly wrong — see "Vercel Standard Protection alias gap" below.
-2. **Frame budget** — start at 15 for ≤60s videos, 25 absolute max
-3. **PDF parser** — `unpdf` (preserves page boundaries for citation)
-4. **pgvector index** — hnsw (Supabase Postgres supports it)
-5. **Embedding dim lock-in** — accept 1536 (re-embedding on provider switch is cheap at this scale)
-6. **Timestamp validation** — clamp out-of-range to `[0, duration]` and warn (don't fail the breakdown)
-7. **Empty-audio** — already handled in the system prompt (B-roll-only videos derive from frames)
-8. **Dedup on re-upload** — reject duplicates; manual delete to override
-9. **Frame retention** — keep all extracted JPGs; revisit when Storage bill bites
-10. **Source-trust weights** — hardcoded map in `lib/search/trust.ts` for v0; promote to DB in Phase 2
+2. ~~**Frame budget**~~ — Settled at 15 for ≤60s, 25 absolute max.
+3. ~~**PDF parser**~~ — `unpdf` (per-page boundaries → `page_number`).
+4. ~~**pgvector index**~~ — hnsw cosine, indexed in migration 0004.
+5. ~~**Embedding dim lock-in**~~ — Accepted 1536; `text-embedding-3-small` shipped.
+6. ~~**Timestamp validation**~~ — Clamp-and-warn in breakdown prompt.
+7. ~~**Empty-audio**~~ — Handled in system prompt; B-roll-only videos derive from frames.
+8. ~~**Dedup on re-upload**~~ — STEP 0 sha256 marks duplicates; manual delete to override.
+9. ~~**Frame retention**~~ — Keep all extracted JPGs (Storage bill not yet a problem).
+10. ~~**Source-trust weights**~~ — Promoted to DB table in Slice 7 (migration 0009); admin UI at `/trust`.
 
 ## Slice plan (from `PLAN.md` §9)
 
@@ -94,18 +75,38 @@ Numbered list straight from `PLAN.md` "Risks & open questions" section. My recom
 
 ## Next concrete action
 
-**v0 is done — move to Phase 2: script generator.** This is the
-RAG-driven half the entire corpus was built to feed. PLAN §1 has
-the architecture (RAG retrieval + Claude); SPEC.md frames the
-multi-tenant Phase 2 audience (affiliate creators, male + female,
-with `target_creator_gender` becoming a request-time param on the
-script form). Auth + a real users table land at this point per
-SPEC's locked decisions.
+**Start Phase 2: script generator.** This is the RAG-driven half the
+v0 corpus was built to feed. Suggested kickoff sequence:
 
-Phase 2 will need its own SPEC/PLAN re-read + slice breakdown before
-coding — the v0 PLAN intentionally scoped script generation out.
+1. Re-read `SPEC.md` §"Out of scope for v0" + §"Decisions already locked"
+   so the Phase 2 framing is current in your head.
+2. Draft a new planning doc (working name `PLAN_PHASE2.md`) — start from
+   what's open per SPEC: auth/users table shape, multi-tenant data scoping,
+   request-time `target_creator_gender` param, RAG retrieval ranker
+   (reuse `lib/search/{query,rank,trust}.ts`), Claude prompt for script
+   generation, framework library (Hormozi/etc) as input, output schema +
+   UI for drafts. Surface every open question Cameron should weigh in on
+   *before* writing code, the same way the v0 PLAN did.
+3. Slice it small (echo v0's "smallest E2E first" pattern: minimal auth
+   + minimal RAG → one script draft from one query).
 
-Open follow-ups (non-blocking):
+What carries over for free: the entire `corpus_chunks` corpus + search
+RPC + rank pipeline; `text-embedding-3-small` (1536d); Basic Auth proxy;
+Supabase project + Vercel deploy. What's net-new: auth/users, script
+prompt, framework ingestion (probably reuses knowledge pipeline), draft
+storage table.
+
+**Decision Phase 2 will need to make early:** `proxy.ts` Basic-Auths
+every route today. When real auth lands, choose between (a) keeping
+`proxy.ts` as a coarse outer gate in front of real auth (defense in
+depth — friendly for a single-creator beta where only invited people
+have the password) or (b) removing it once the real auth surface is
+verified. Don't leave both running silently — passwords leak, real
+auth becomes load-bearing, and the proxy turns into a confusing
+artifact. Bake this into the auth-slice plan.
+
+Open follow-ups from v0 (non-blocking, all could roll into Phase 2 if
+they bite):
 
 1. ~~**Breakdown quality regression for 5d44a1de**~~ — resolved by the Slice 5.5 backfill. Both surviving embedded videos (5d44a1de + d21d7f8b) were re-analyzed under the new prompt and shipped with rich, comparable breakdowns. `611cdcaa` still carries its original Slice 3 breakdown row (status='duplicate', not surfaced), but the comparison no longer matters because the prompt + schema have changed underneath it.
 2. **`corpus_chunks` partial-write within STEP 4 / knowledge embed** —
@@ -129,10 +130,10 @@ Open follow-ups (non-blocking):
    filters, so a `limit 30` post-filter can drop below 30 rows. Invisible
    at current corpus size (2 videos + a few knowledge items); revisit if
    filtered searches start returning thin result lists.
-6. **Slice 6 deep-link URLs emit `?t=N` / `?chunk=N`** but the detail
-   pages don't read them yet — seek-on-mount + scroll-to-chunk wiring
-   is scoped to Slice 7. Cards link correctly today but land at the
-   top of the page.
+6. ~~**Slice 6 deep-link URLs emit `?t=N` / `?chunk=N` but detail pages
+   don't read them**~~ — resolved in Slice 7 partial: StudyTool now
+   seeks on mount, knowledge page scrolls + highlights the matching
+   chunk.
 
 ## Slice 6 shipped — what landed
 
@@ -143,8 +144,9 @@ Open follow-ups (non-blocking):
   ai_tags, view_count, posted_at; title/kind/source_label) in one round
   trip. Filters compile away when null (`p_X is null or col = p_X`).
 - **`lib/search/trust.ts`:** hardcoded `source_label → weight` map, default
-  1.0. Stub entries: Hormozi=1.2, personal notes=0.7. Promote to DB in
-  Phase 2 (PLAN §8).
+  1.0. Stub entries: Hormozi=1.2, personal notes=0.7. (Superseded in
+  Slice 7 — promoted to `source_trust` DB table earlier than the
+  PLAN-§8 "Phase 2" plan called for.)
 - **`lib/search/rank.ts`:** pure ranking. `finalScore = similarity +
   0.05·recency + 0.08·virality + 0.05·trust`. Recency uses the parent
   row's date (`videos.posted_at` ?? `videos.created_at`, or
@@ -262,7 +264,8 @@ Open follow-ups (non-blocking):
   niche_tag, first_frame_path)`.
 - **Pipeline STEP 4:** `lib/pipeline/video.ts` embeds each
   `transcript_chunks` row + one chunk per non-empty breakdown facet
-  (`breakdown_summary`, `male_creator_relevance`, `buyer_psych_levers`,
+  (`breakdown_summary`, `male_creator_relevance` *— renamed to
+  `gender_specific_notes` in Slice 5.5*, `buyer_psych_levers`,
   `pacing_notes`, `visual_style_notes`) via OpenAI
   `text-embedding-3-small`. Insert is
   `upsert(..., onConflict: 'video_id,chunk_kind,chunk_index',
@@ -338,21 +341,9 @@ npx next build                                       # catch deploy-time issues
 
 ## Git history
 
-```
-<this commit> End-of-session save: capture key-rotation todo + Slice 4 entry state
-28ceb14 Fix Slice 3 dedup unique-index + surface STEP 0 update errors
-df6fa74 Record Slice 4 pause point in STATUS.md
-006660e Ship Slice 3: idempotent pipeline (step gates + STEP 0 sha256 dedup)
-5f29e55 Ship Slice 2: transcripts/frames persistence + study-tool UI
-b531024 Record Slice 1 Vercel deploy in STATUS.md
-ebb4094 Gate deployment with Basic Auth proxy
-66f5123 Ship Slice 1: MP4 upload to Claude breakdown pipeline
-cc02a51 Add STATUS.md as session-handoff doc
-1a42593 Patch PLAN.md with five smaller cleanups
-9095a38 Patch PLAN.md with four pre-code fixes
-0385f65 Add v0 implementation plan from /ultraplan
-f89df31 Initial v0 spec for skincare-scripter
-```
+`git log --oneline` is the source of truth. (Previous embedded snapshot
+got out of date by Slice 5 and was removed — the per-slice "what landed"
+sections below capture the substantive history.)
 
 ## Out of scope for v0 (do not build)
 
