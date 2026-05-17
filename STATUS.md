@@ -6,19 +6,25 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 ## Where we are right now
 
-**Phase:** **Slice 7 partial — deep links + editable metadata code
-complete, awaiting browser verification.** Slice 6 already shipped
-(`21d8f2c`); this round wires the deep-link half (`?t=N` seek-on-mount
-on `/videos/[id]`, `?chunk=N` scroll+highlight on `/knowledge/[id]`)
-and adds an inline editable metadata card on the video detail page
-(creator_handle, view_count, posted_at, niche_tag, brand, product_name,
-creator_gender, user_notes). PATCH route updates `videos` and
-propagates the three denormalized fields to `corpus_chunks.metadata`
-so the indexed `metadata->>'niche_tag'` doesn't go stale.
+**Phase:** **Slice 7 (partial) shipped — deep links + editable
+metadata.** Browser-verified on prod (deploy
+`dpl_6rGq8Uys6qU2nKK95VgPrUBxHAQh` / commit `a407899`). Search result
+cards now actually land where they say they will: `?t=N` seeks the
+study-tool player on mount (readyState-aware so cached videos still
+seek), `?chunk=N` scrolls the matching knowledge chunk into view with
+a 2s highlight flash. Inline editable metadata card on `/videos/[id]`
+covers creator_handle, view_count, posted_at, niche_tag (with native
+`<datalist>` autocomplete from existing values), brand, product_name,
+creator_gender, user_notes. PATCH route updates `videos` and propagates
+the three denormalized fields (niche_tag, view_count, creator_handle)
+to `corpus_chunks.metadata` so the Slice 4 indexed
+`metadata->>'niche_tag'` doesn't go stale.
 
-**Deferred to a later Slice 7 round** (per scope check): clickable
-timestamps inside the BreakdownSummary card and a UI for editing
-source-trust constants.
+**Deferred to a follow-up Slice 7 round:** clickable timestamps inside
+the BreakdownSummary card (hook/problem/twist/solution/cta spans seek
+the player) and a UI for editing source-trust constants
+(`lib/search/trust.ts` today — PLAN §8 calls for promoting to a DB
+table in Phase 2).
 
 Semantic search across
 both corpora (videos + knowledge) via a single `search_corpus(query_embedding, ...filters)` RPC
@@ -89,30 +95,25 @@ Numbered list straight from `PLAN.md` "Risks & open questions" section. My recom
 | 5 | Knowledge ingestion (PDF/MD/TXT/pasted) | **shipped ✓** |
 | 5.5 | Metadata pivot: brand/product/gender/notes/ai_tags + neutral breakdown | **shipped ✓** |
 | 6 | Unified search across both corpora (now uses creator_gender/brand/product/ai_tags filters) | **shipped ✓** |
-| 7 | Polish (editable metadata, niche tags, clickable timestamps) | **partial · awaiting browser verify** (deep links + editable metadata done; clickable timestamps + trust UI deferred) |
+| 7 | Polish (editable metadata, niche tags, clickable timestamps) | **partial · shipped ✓** (deep links + editable metadata; clickable timestamps + trust UI deferred to follow-up) |
 
 ## Next concrete action
 
-**Finish Slice 7 verification, then pick up the deferred half.** Browser
-checks below; once those pass, deferred items are:
-- Clickable timestamps inside the BreakdownSummary card (hook/problem/
-  twist/solution/cta spans) that seek the player to the relevant moment.
-- UI for editing source-trust constants — `lib/search/trust.ts` today.
-  PLAN §8 says "promote to DB in Phase 2"; this Slice 7 item is the
-  UI half (still backed by a constant if we don't migrate).
+**Pick up the deferred Slice 7 round, or move past v0.** v0 corpus-
+building half (Slices 1–7 partial) is now feature-complete on prod.
+Remaining v0 polish items:
+- Clickable timestamps inside the BreakdownSummary card so
+  hook/problem/twist/solution/cta spans seek the player to their
+  `t_start`. Small follow-up; the seek primitive already exists in
+  `StudyTool` and the spans already carry `t_start`/`t_end`.
+- UI for editing source-trust constants. PLAN §8 calls for promoting
+  `lib/search/trust.ts` to a DB table in Phase 2; the v0 UI half is
+  optional if Cameron is fine editing the constant directly until then.
 
-**Browser smoke for the current round:**
-1. Open a search result link with `?t=N` (e.g. click any video card from
-   `/search`) — video player should auto-seek to ~N seconds and play.
-2. Open a knowledge search result with `?chunk=N` — the matching chunk
-   row should scroll into view with a 2-second highlight flash.
-3. On `/videos/[id]`, click Edit on the metadata card, set
-   creator_handle / view_count / posted_at / niche_tag, Save —
-   confirm the card returns to view mode showing the new values, and
-   verify `corpus_chunks.metadata->>'niche_tag'` matches via a SQL
-   spot-check.
-4. Re-search using the new niche_tag pill on `/search` — the just-tagged
-   video should appear in the filtered list.
+After those, the natural next move is **Phase 2: script generator** —
+the RAG-driven half this entire corpus was built to feed. PLAN §1
+describes the architecture (RAG retrieval + Claude); SPEC.md frames
+the multi-tenant Phase 2 affiliate-creator audience.
 
 Open follow-ups (non-blocking):
 
