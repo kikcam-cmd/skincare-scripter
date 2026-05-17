@@ -6,14 +6,11 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 ## Where we are right now
 
-**Phase:** **Slice 6 unified search — code complete, awaiting browser
-verification.** Migration applied to prod DB; build clean; SQL smoke
-tests pass (self-similarity = 1.0000, brand filter restricts correctly).
-But CLAUDE.md requires browser verification before marking shipped, and
-local dev is gated by the same Basic Auth proxy as prod (no secret
-materialization allowed in agent sessions), so Cameron needs to load
-`/search` in a browser and confirm the UI renders + a real query
-returns results + a pill toggle round-trips through the URL.
+**Phase:** **Slice 6 unified search shipped.** Migration applied to prod
+DB; build clean; SQL smoke tests pass (self-similarity = 1.0000, brand
+filter restricts correctly); browser-verified on prod
+(`https://skincare-scripter.vercel.app/search`, deploy
+`dpl_51NQfEaQ2C86eUQrsADR7SvJa5q7` / commit `21d8f2c`).
 
 Semantic search across
 both corpora (videos + knowledge) via a single `search_corpus(query_embedding, ...filters)` RPC
@@ -83,7 +80,7 @@ Numbered list straight from `PLAN.md` "Risks & open questions" section. My recom
 | 4 | Embeddings + similar-videos panel | **shipped ✓** |
 | 5 | Knowledge ingestion (PDF/MD/TXT/pasted) | **shipped ✓** |
 | 5.5 | Metadata pivot: brand/product/gender/notes/ai_tags + neutral breakdown | **shipped ✓** |
-| 6 | Unified search across both corpora (now uses creator_gender/brand/product/ai_tags filters) | **code complete · awaiting browser verify** |
+| 6 | Unified search across both corpora (now uses creator_gender/brand/product/ai_tags filters) | **shipped ✓** |
 | 7 | Polish (editable metadata, niche tags, clickable timestamps) | not started |
 
 ## Next concrete action
@@ -169,15 +166,6 @@ Open follow-ups (non-blocking):
   correctly. Fix would need a small client component to read the input
   value into the pill href on click. Left as a v0 quirk.
 
-**Open before flipping Slice 6 to shipped:**
-1. Cameron loads `/search` in a browser, confirms the UI renders and a
-   real query like `"lip plumper"` or `"blackhead pore"` returns the
-   expected results with correct citations.
-2. Toggle a pill (e.g. brand=Medicube), confirm URL gains the param and
-   the result set narrows; toggle off, confirm it clears.
-3. Click a video result, confirm it lands on `/videos/[id]?t=N` (page
-   landing at the top is expected — seek-on-mount is Slice 7).
-4. Deploy to Vercel and re-verify the same flow on prod.
 
 ## Slice 5.5 shipped — what landed
 
