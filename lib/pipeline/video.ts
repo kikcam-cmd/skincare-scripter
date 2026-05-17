@@ -54,7 +54,7 @@ export async function processVideo({ videoId }: { videoId: string }): Promise<vo
   const { data: video, error: vErr } = await supabase
     .from("videos")
     .select(
-      "id, storage_path, filename, content_hash, creator_handle, view_count, niche_tag, duration_seconds",
+      "id, storage_path, filename, content_hash, creator_handle, view_count, niche_tag, duration_seconds, creator_gender, brand, product_name, user_notes",
     )
     .eq("id", videoId)
     .single();
@@ -249,6 +249,10 @@ export async function processVideo({ videoId }: { videoId: string }): Promise<vo
           view_count: video.view_count,
           niche_tag: video.niche_tag,
           duration_seconds: duration,
+          creator_gender: video.creator_gender,
+          brand: video.brand,
+          product_name: video.product_name,
+          user_notes: video.user_notes,
         },
         transcriptLines,
         frames: frames.map((f, i) => ({
@@ -269,16 +273,20 @@ export async function processVideo({ videoId }: { videoId: string }): Promise<vo
         pacing_notes: parsed.pacing_notes,
         buyer_psychology_levers: parsed.buyer_psychology_levers,
         visual_style_notes: parsed.visual_style_notes,
-        male_creator_relevance: parsed.male_creator_relevance,
+        gender_specific_notes: parsed.gender_specific_notes,
         raw_claude_response: raw as unknown as Record<string, unknown>,
         model: BREAKDOWN_MODEL,
       });
       if (bErr) throw new Error(`breakdown insert failed: ${bErr.message}`);
 
-      await supabase
+      // ai_tags lives on videos (filterable metadata, not a breakdown facet).
+      // Setting it alongside status keeps the analyzed transition atomic from
+      // the caller's perspective.
+      const { error: tagErr } = await supabase
         .from("videos")
-        .update({ status: "analyzed" })
+        .update({ status: "analyzed", ai_tags: parsed.ai_tags ?? [] })
         .eq("id", videoId);
+      if (tagErr) throw new Error(`videos ai_tags update failed: ${tagErr.message}`);
     }
 
     // STEP 4: embeddings — gate by any corpus_chunks row existing for this
@@ -298,7 +306,7 @@ export async function processVideo({ videoId }: { videoId: string }): Promise<vo
         supabase
           .from("breakdowns")
           .select(
-            "hook, problem, twist, solution, cta, tonality, male_creator_relevance, pacing_notes, buyer_psychology_levers, visual_style_notes",
+            "hook, problem, twist, solution, cta, tonality, gender_specific_notes, pacing_notes, buyer_psychology_levers, visual_style_notes",
           )
           .eq("video_id", videoId)
           .single(),
@@ -321,7 +329,7 @@ export async function processVideo({ videoId }: { videoId: string }): Promise<vo
 
       const facets: Array<{ kind: string; text: string | null }> = [
         { kind: "breakdown_summary", text: renderBreakdownSummary(bd) },
-        { kind: "male_creator_relevance", text: (bd.male_creator_relevance as string | null) ?? null },
+        { kind: "gender_specific_notes", text: (bd.gender_specific_notes as string | null) ?? null },
         { kind: "buyer_psych_levers", text: joinStringList(bd.buyer_psychology_levers) },
         { kind: "pacing_notes", text: (bd.pacing_notes as string | null) ?? null },
         { kind: "visual_style_notes", text: (bd.visual_style_notes as string | null) ?? null },
@@ -356,6 +364,7 @@ export async function processVideo({ videoId }: { videoId: string }): Promise<vo
       const { error: ccErr } = await supabase.from("corpus_chunks").upsert(
         items.map((it, idx) => ({
           video_id: videoId,
+          source_type: "video",
           chunk_kind: it.chunk_kind,
           chunk_index: it.chunk_index,
           text: it.text,

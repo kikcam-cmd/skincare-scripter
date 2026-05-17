@@ -9,6 +9,8 @@ export type PipelineStatus =
 
 export type Span = { text: string; t_start: number; t_end: number };
 
+export type CreatorGender = "male" | "female" | "unknown";
+
 export type BreakdownPayload = {
   hook: Span & { type: string; why_it_works: string };
   problem: Span & { framing: string };
@@ -20,5 +22,6 @@ export type BreakdownPayload = {
   pacing_notes: string;
   buyer_psychology_levers: string[];
   visual_style_notes: string;
-  male_creator_relevance: string;
+  gender_specific_notes: string | null;
+  ai_tags: string[];
 };

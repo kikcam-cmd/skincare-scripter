@@ -7,12 +7,25 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 type Phase = "idle" | "signing" | "uploading" | "registering" | "done" | "error";
+type Gender = "unknown" | "male" | "female";
 
 export function UploadCard() {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+
+  const [creatorGender, setCreatorGender] = useState<Gender>("unknown");
+  const [brand, setBrand] = useState("");
+  const [productName, setProductName] = useState("");
+  const [userNotes, setUserNotes] = useState("");
+
+  const resetMetadata = () => {
+    setCreatorGender("unknown");
+    setBrand("");
+    setProductName("");
+    setUserNotes("");
+  };
 
   const onDrop = useCallback(
     async (files: File[]) => {
@@ -44,11 +57,16 @@ export function UploadCard() {
           body: JSON.stringify({
             storagePath,
             filename: file.name,
+            creatorGender,
+            brand: brand.trim() || null,
+            productName: productName.trim() || null,
+            userNotes: userNotes.trim() || null,
           }),
         });
         if (!regRes.ok) throw new Error(`register failed: ${await regRes.text()}`);
         const { videoId } = (await regRes.json()) as { videoId: string };
 
+        resetMetadata();
         setPhase("done");
         router.push(`/videos/${videoId}`);
       } catch (err) {
@@ -56,8 +74,10 @@ export function UploadCard() {
         setPhase("error");
       }
     },
-    [router],
+    [router, creatorGender, brand, productName, userNotes],
   );
+
+  const busy = phase === "signing" || phase === "uploading" || phase === "registering";
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -67,23 +87,78 @@ export function UploadCard() {
       "video/webm": [".webm"],
     },
     multiple: false,
-    disabled: phase !== "idle" && phase !== "error" && phase !== "done",
+    disabled: busy,
   });
 
   return (
     <Card>
-      <CardContent className="p-0">
+      <CardContent className="p-6 space-y-5">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Brand">
+            <input
+              type="text"
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
+              placeholder="Dr. Melaxin"
+              disabled={busy}
+              className="w-full h-9 px-3 rounded-md border bg-background text-sm"
+            />
+          </Field>
+          <Field label="Product">
+            <input
+              type="text"
+              value={productName}
+              onChange={(e) => setProductName(e.target.value)}
+              placeholder="Lip Plumper"
+              disabled={busy}
+              className="w-full h-9 px-3 rounded-md border bg-background text-sm"
+            />
+          </Field>
+        </div>
+
+        <Field label="Creator gender">
+          <div className="flex gap-2">
+            {(["unknown", "male", "female"] as const).map((g) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => setCreatorGender(g)}
+                disabled={busy}
+                className={`
+                  h-9 px-4 rounded-md border text-sm capitalize
+                  ${creatorGender === g
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background hover:bg-muted"}
+                `}
+              >
+                {g}
+              </button>
+            ))}
+          </div>
+        </Field>
+
+        <Field label="Notes (optional)">
+          <textarea
+            value={userNotes}
+            onChange={(e) => setUserNotes(e.target.value)}
+            placeholder="What caught your eye, keywords, context for future you…"
+            disabled={busy}
+            rows={2}
+            className="w-full px-3 py-2 rounded-md border bg-background text-sm resize-y"
+          />
+        </Field>
+
         <div
           {...getRootProps()}
           className={`
             border-2 border-dashed rounded-lg p-10 text-center cursor-pointer
             transition-colors
             ${isDragActive ? "border-primary bg-muted/50" : "border-border hover:bg-muted/30"}
-            ${phase === "uploading" || phase === "signing" || phase === "registering" ? "pointer-events-none opacity-60" : ""}
+            ${busy ? "pointer-events-none opacity-60" : ""}
           `}
         >
           <input {...getInputProps()} />
-          {phase === "idle" || phase === "done" || phase === "error" ? (
+          {!busy ? (
             <div className="space-y-2">
               <p className="text-sm">
                 {isDragActive ? "Drop it." : "Drop an MP4 here, or click to pick."}
@@ -109,12 +184,23 @@ export function UploadCard() {
           )}
         </div>
         {error && (
-          <p className="px-6 pb-4 text-xs text-destructive font-mono whitespace-pre-wrap">
+          <p className="text-xs text-destructive font-mono whitespace-pre-wrap">
             {error}
           </p>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block space-y-1.5">
+      <span className="text-xs font-mono uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      {children}
+    </label>
   );
 }
 

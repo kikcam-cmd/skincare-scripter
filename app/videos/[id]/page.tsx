@@ -135,6 +135,9 @@ export default async function VideoDetailPage({
         </Badge>
       </div>
 
+      <VideoMetadata video={video} />
+
+
       {video.status === "failed" && video.error_message && (
         <Card className="border-destructive">
           <CardHeader>
@@ -184,6 +187,46 @@ export default async function VideoDetailPage({
   );
 }
 
+function VideoMetadata({ video }: { video: Record<string, unknown> }) {
+  const brand = (video.brand as string | null) ?? null;
+  const product = (video.product_name as string | null) ?? null;
+  const gender = (video.creator_gender as string) ?? "unknown";
+  const notes = (video.user_notes as string | null) ?? null;
+  const aiTags = Array.isArray(video.ai_tags) ? (video.ai_tags as string[]) : [];
+  const hasAny = brand || product || gender !== "unknown" || notes || aiTags.length > 0;
+  if (!hasAny) return null;
+  return (
+    <Card>
+      <CardContent className="py-4 space-y-2 text-sm">
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
+          {brand && <span><span className="text-muted-foreground">Brand:</span> {brand}</span>}
+          {product && <span><span className="text-muted-foreground">Product:</span> {product}</span>}
+          {gender !== "unknown" && (
+            <span><span className="text-muted-foreground">Creator:</span> {gender}</span>
+          )}
+        </div>
+        {notes && (
+          <div>
+            <div className="text-xs font-mono uppercase tracking-wide text-muted-foreground">
+              Notes
+            </div>
+            <div className="mt-1 whitespace-pre-wrap">{notes}</div>
+          </div>
+        )}
+        {aiTags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {aiTags.map((tag) => (
+              <Badge key={tag} variant="outline" className="font-mono text-xs">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function BreakdownSummary({ breakdown }: { breakdown: Record<string, unknown> }) {
   const spans = ["hook", "problem", "twist", "solution", "cta"] as const;
   return (
@@ -204,12 +247,14 @@ function BreakdownSummary({ breakdown }: { breakdown: Record<string, unknown> })
             </div>
           );
         })}
-        <div>
-          <div className="text-xs font-mono uppercase tracking-wide text-muted-foreground">
-            Male creator relevance
+        {breakdown.gender_specific_notes ? (
+          <div>
+            <div className="text-xs font-mono uppercase tracking-wide text-muted-foreground">
+              Gender-specific notes
+            </div>
+            <div className="text-sm mt-1">{breakdown.gender_specific_notes as string}</div>
           </div>
-          <div className="text-sm mt-1">{breakdown.male_creator_relevance as string}</div>
-        </div>
+        ) : null}
       </CardContent>
     </Card>
   );

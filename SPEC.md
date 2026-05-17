@@ -1,21 +1,21 @@
 # skincare-scripter
 
-A personal TikTok scripting copilot for breaking into the male-skincare niche. Self-use only for v0 — no auth, no multi-tenant, no billing.
+A TikTok scripting copilot for the skincare niche. Self-curated corpus in v0 — Cameron is the only one feeding videos and knowledge in — opens to affiliate creators (male and female) on the script-generation side in Phase 2. No auth, no billing in v0.
 
 ## Positioning
 
-Cameron is a male creator entering a female-dominant niche. The tool itself must learn this positioning — outputs should respect that frame, not produce generic skincare-creator content. The angle (male-in-female-niche) is part of the product.
+Skincare-focused, multi-creator-gender. Source videos and the eventual script consumers can be male or female; the analysis is gender-neutral by default, and Claude only emits a `gender_specific_notes` field when a beat materially depends on the creator's gender to land. Brand, product, and creator gender are per-video metadata, set on upload. Future beauty expansion is plausible (skincare and beauty share enough vocabulary that a comparison study would tell us whether to merge or keep them separate — that's a Phase 3+ question, not a v0 decision).
 
 ## Two ingestion paths, one corpus
 
-1. **Video uploads (manual)** — Cameron records/saves viral TikToks to camera roll, drags MP4 into the app with optional metadata (creator handle, view count, post date, niche tag).
+1. **Video uploads (manual)** — Cameron records/saves viral TikToks to camera roll, drags MP4 into the app, tags brand, product, creator gender, and optional free-form notes. Claude also extracts 5–10 freeform `ai_tags` per video during analysis (product category, audience signal, content format, use case).
 2. **Knowledge uploads** — PDFs / Markdown / TXT / pasted transcripts of books, course notes, swipe files, frameworks. Optional source label.
 
 Both flow into the same searchable corpus (pgvector), with separate detail views.
 
 ## v0 scope (this project)
 
-**Phase 1 (v0): Video analysis + KB ingestion only.** No script generator yet — that's Phase 2. Rationale: build the corpus first so script generation later is grounded in real analyzed data, not assumed frameworks.
+**Phase 1 (v0): Video analysis + KB ingestion only.** No script generator yet — that's Phase 2. Rationale: build the corpus first so script generation later is grounded in real analyzed data, not assumed frameworks. Ingestion is single-user (Cameron). The script generator opens to affiliate creators in Phase 2; at that point `target_creator_gender` becomes a request-time parameter on the script form, and a proper auth/users table lands alongside it.
 
 ### Video processing pipeline
 
@@ -40,9 +40,12 @@ Both flow into the same searchable corpus (pgvector), with separate detail views
   "pacing_notes": "string",
   "buyer_psychology_levers": ["string"],
   "visual_style_notes": "string",
-  "male_creator_relevance": "string"
+  "gender_specific_notes": "string | null",
+  "ai_tags": ["string"]
 }
 ```
+
+`gender_specific_notes` is nullable — Claude only fills it when a beat materially depends on the creator's gender to land, and names the adaptation a creator of the opposite gender would need. `ai_tags` are stored on `videos.ai_tags` (filterable metadata), not embedded as a chunk.
 
 ### Knowledge processing pipeline
 

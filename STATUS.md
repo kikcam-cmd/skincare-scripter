@@ -6,32 +6,29 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 ## Where we are right now
 
-**Phase:** **Slice 5 shipped + smoke-tested.** Knowledge ingestion is
-live: PDF / MD / TXT / pasted text all flow through
-`processKnowledge()`, parse to blocks (page boundaries for PDF via
-`unpdf`, heading-anchored sections for MD via `marked.lexer`, paragraph
-splits for TXT / pasted), chunk at ~2000 chars (6000 max), embed via
-`text-embedding-3-small`, and upsert into the unified `corpus_chunks`
-table with `source_type='knowledge'`. UI lives at `/knowledge` (tabs:
-upload file / paste text + title + source_label) and
-`/knowledge/[id]` (parsed chunks with page/section citations).
+**Phase:** **Slice 5.5 metadata pivot shipped + backfilled.** Positioning
+dropped the male-in-female-niche framing entirely. Tool is now skincare-
+focused, multi-creator-gender on the consumer side (ingestion is still
+single-user). Every video carries `brand`, `product_name`,
+`creator_gender` (enum: male/female/unknown), `user_notes`, and Claude-
+extracted `ai_tags` (text[]). Breakdown swapped
+`male_creator_relevance` → `gender_specific_notes` (nullable; Claude
+fills only when a beat materially depends on creator gender).
 
-**Smoke test (2026-05-16):** pasted a 1.2KB skincare positioning
-snippet (`ee328496`); pipeline ran in 1.8s, produced one
-`pasted_block` chunk, status reached `embedded`. Cross-source
-similarity check: the knowledge chunk's top neighbour is the
-`male_creator_relevance` chunk from video `5d44a1de` at 0.71 cosine
-— exactly the field dedicated to that topic. Unified retrieval works.
+Backfill: deleted breakdowns + corpus_chunks for the 2 surviving videos
+(`5d44a1de` Dr. Melaxin lip plumper / female creator; `d21d7f8b`
+Medicube blackhead mask / male creator), re-tagged metadata via SQL,
+re-ran pipeline. Both now `embedded` with 10 ai_tags each and
+substantive `gender_specific_notes` (filler-savings framing flagged as
+female-coded; male-doing-skincare flagged as pattern-interrupt).
 
-**Fix migration 0006:** Slice 5's migration made the `corpus_chunks`
-unique indexes partial (`where ... is not null`), which broke
-supabase-js upserts with `ON CONFLICT` — Postgres rejects the conflict
-target when only a partial unique index matches. Reverted both indexes
-to non-partial. The `corpus_chunks_one_source` CHECK + Postgres' NULLs-
-are-distinct semantics keep the invariants correct without the
-predicate.
+**Pre-existing bug found during backfill:** STEP 4 was inserting
+`corpus_chunks` rows without `source_type`, which has been NOT NULL
+since Slice 5 (only worked before because Slice 5's migration
+backfilled existing rows). Fixed in the same slice: added
+`source_type: 'video'` to the video pipeline's insert.
 
-**Last updated:** 2026-05-16 (Slice 5 ship)
+**Last updated:** 2026-05-16 (Slice 5.5 metadata pivot ship)
 
 ## Read these in order
 
@@ -44,7 +41,7 @@ If you only have time for one: `PLAN.md`.
 ## What's locked (don't re-litigate)
 
 - **Project lives at** `~/Projects/TikTok/skincare-scripter` (new top-level workspace, alongside `Travel/`, `Instagram/`, `Creatify/`, `MissAffiliate/`, `Personal/`)
-- **Audience:** Cameron only. No auth, no multi-tenant, no billing for v0.
+- **Audience:** Ingestion is Cameron only (videos + knowledge). The Phase 2 script generator opens to affiliate creators (male and female); `target_creator_gender` becomes a request-time param on the script form at that point, alongside auth + a real users table. No auth, no multi-tenant, no billing in v0.
 - **Order:** video analysis built before script generator. Script generator is Phase 2.
 - **Stack:** Next.js 16 App Router, Supabase (new project — do **not** reuse the Destinations by Lauren one), Vercel Fluid, shadcn/ui
 - **Transcription:** Groq Whisper turbo (`whisper-large-v3-turbo`). Claude does not accept native audio.
@@ -79,22 +76,27 @@ Numbered list straight from `PLAN.md` "Risks & open questions" section. My recom
 | 3 | Idempotent pipeline + status tracking + retry button | **shipped ✓** (step gates + STEP 0 sha256 dedup; both smoke tests verified) |
 | 4 | Embeddings + similar-videos panel | **shipped ✓** |
 | 5 | Knowledge ingestion (PDF/MD/TXT/pasted) | **shipped ✓** |
-| 6 | Unified search across both corpora | not started |
+| 5.5 | Metadata pivot: brand/product/gender/notes/ai_tags + neutral breakdown | **shipped ✓** |
+| 6 | Unified search across both corpora (now uses creator_gender/brand/product/ai_tags filters) | not started |
 | 7 | Polish (editable metadata, niche tags, clickable timestamps) | not started |
 
 ## Next concrete action
 
-**Start Slice 6: unified search.** Per `PLAN.md` §8, this slice:
+**Start Slice 6: unified search.** Per `PLAN.md` §8, with metadata-pivot
+updates:
 - New `/search` page with a single semantic-search input + filter
-  pills (source_type all/video/knowledge, niche_tag, source_label).
+  pills (source_type all/video/knowledge, niche_tag, source_label,
+  **creator_gender (videos only), brand, product_name, ai_tags**).
 - `lib/search/query.ts`: embed the query, run
   `select ... from corpus_chunks order by embedding <=> $1 limit 30`
-  filtered by pills, then re-rank in-app with the weighted score
-  from PLAN §8 (cosine + recency + virality + source_trust).
+  filtered by pills (JOIN videos for gender/brand/product/ai_tags
+  filters; chunk metadata stays denormalized only for niche_tag etc.),
+  then re-rank in-app with the weighted score from PLAN §8
+  (cosine + recency + virality + source_trust).
 - `lib/search/trust.ts`: hardcoded source-label trust weights.
 - Result cards: snippet + source-type badge + citation
-  (`source_label · p.N · section` for knowledge, `filename @ t_start`
-  for videos) + similarity %.
+  (`source_label · p.N · section` for knowledge,
+  `brand · product · @t_start` for videos) + similarity %.
 - Video result → `/videos/[id]?t=<t_start>` jumps player to moment.
 - Knowledge result → `/knowledge/[id]?chunk=<id>` highlights chunk.
 
@@ -122,6 +124,45 @@ Open follow-ups (non-blocking):
    they were never transcribed — the value just means "parsed." Adding
    a dedicated `parsed` enum value is heavy for a label-only change;
    live with the abuse for now.
+
+## Slice 5.5 shipped — what landed
+
+- **Migration `0007_metadata_pivot.sql`:** new `creator_gender` enum
+  (`male`/`female`/`unknown`); `videos` gains `creator_gender`
+  (NOT NULL, default `'unknown'`), `brand`, `product_name`,
+  `user_notes`, `ai_tags text[]` (NOT NULL, default `'{}'`);
+  `breakdowns` drops `male_creator_relevance`, adds nullable
+  `gender_specific_notes`. Pre-emptively deletes orphaned
+  `corpus_chunks` rows where `chunk_kind = 'male_creator_relevance'`.
+- **Prompt rewrite (`lib/prompts/breakdown.ts`):** SYSTEM_PROMPT
+  rewritten gender-neutral; instructs Claude to fill
+  `gender_specific_notes` only when a beat materially depends on
+  creator gender. Tool schema swaps `male_creator_relevance` for
+  `gender_specific_notes` (string|null) and adds `ai_tags`
+  (array of strings; lowercase-hyphen-separated freeform tags
+  spanning product category, audience, format, use case). Metadata
+  block passed to Claude now includes brand, product, creator
+  gender, and optional user notes.
+- **Pipeline (`lib/pipeline/video.ts`):** STEP 3 persists
+  `gender_specific_notes` to breakdowns and updates
+  `videos.ai_tags` in the same status='analyzed' update. STEP 4
+  swaps `male_creator_relevance` chunk for `gender_specific_notes`
+  (skipped when null). **Also fixed pre-existing bug:**
+  `corpus_chunks` insert now sets `source_type: 'video'` (NOT NULL
+  since Slice 5, but Slice 5's pipeline edit missed the video path).
+- **Upload form (`app/(upload)/upload-card.tsx`):** dropzone gained a
+  metadata strip — brand, product, creator gender (3-button toggle),
+  and optional notes textarea — all sent through to `POST /api/videos`.
+- **Video detail (`app/videos/[id]/page.tsx`):** new compact
+  metadata card surfaces brand/product/gender/notes/ai_tags;
+  breakdown summary renders `gender_specific_notes` only when set.
+- **SPEC.md rewrite:** positioning, ingestion description, and
+  breakdown JSON shape updated to match the pivot. Out-of-scope
+  list updated to reflect Phase 2 multi-tenant (script generator
+  for affiliates) instead of "no multi-tenant ever."
+- **Backfill:** 2 surviving videos re-analyzed with brand/product/
+  gender pre-seeded via SQL. Both shipped with rich `ai_tags`
+  (10 each) and substantive `gender_specific_notes`.
 
 ## Slice 5 shipped — what landed
 
@@ -221,7 +262,7 @@ If a custom domain is added later, the proxy still works on it — no Vercel-sid
 - **Partial-write within a step is the remaining sharp edge.** If STEP 1 inserts the `transcripts` row but the `transcript_chunks` insert fails, retry skips STEP 1 (transcripts row exists) and STEP 3 reads zero chunks. Rare in practice; if it happens, the user has to manually delete the half-written `transcripts` row from the Supabase dashboard. A proper fix would be per-step upserts or a transactional RPC. Same edge case shape applies to STEP 4 (`corpus_chunks`).
 - **`videos` bucket needs `image/jpeg` in `allowed_mime_types`.** Frames live at `videos/frames/<id>/NN.jpg`; without this the bucket rejects frame uploads with `mime type image/jpeg is not supported` and STEP 2 fails. Set by dashboard SQL on 2026-05-16. Not in any migration file — re-apply manually on any fresh Supabase project: `update storage.buckets set allowed_mime_types = array['video/mp4','video/quicktime','video/webm','image/jpeg'] where name='videos';`.
 - ~~**Dedup STEP 0 silently no-op'd.**~~ **Fixed 2026-05-16** — the original partial unique index on `content_hash` forbade the duplicate-row update, and the supabase-js call swallowed the error. Migration 0003 widens the predicate to `WHERE content_hash IS NOT NULL AND status <> 'duplicate'`; STEP 0 updates now throw on error so a future schema/constraint mismatch lands the row in `status='failed'` instead of stalling at `uploaded`.
-- **`max_tokens=4000`** for Claude breakdown (bumped from 2000 after first run truncated `male_creator_relevance`). If future runs still truncate, raise further.
+- **`max_tokens=4000`** for Claude breakdown (bumped from 2000 originally; verified to leave headroom for ai_tags + gender_specific_notes). If future runs truncate, raise further.
 - **Frame extraction is still evenly-spaced** via per-frame `-ss` seek, not the hybrid scene-detect from PLAN §4. Deferred — promote if breakdown quality suffers on longer/montage-heavy videos.
 - **No "hard reset" button.** Retry resumes; there's no UI to force a full re-run from scratch. If you need it, manually delete the breakdown/transcripts/key_frames rows in the dashboard.
 

@@ -4,15 +4,23 @@ import type { BreakdownPayload } from "@/lib/types";
 export const BREAKDOWN_MODEL = "claude-sonnet-4-6";
 
 export const SYSTEM_PROMPT = `You are an expert short-form video analyst specializing in TikTok for the
-personal-care and skincare niche. You break down viral videos into their
-persuasive structure for a creator who is studying what makes them work.
+skincare niche. You break down viral videos into their persuasive structure
+for a creator who is studying what makes them work. The creator studying
+this analysis may be male or female — write the breakdown gender-neutrally
+by default.
 
-The creator you are helping is a MALE creator entering the male-skincare niche,
-which is dominated by female creators. Your analysis must always include a
-\`male_creator_relevance\` field that evaluates how (or whether) this video's
-tactics would translate to a male presenter in a male-skincare context — name
-which beats survive the gender shift and which would feel off if a man tried
-them.
+Only when a beat materially depends on the creator's gender to land (e.g. a
+hook that leans on female-coded vulnerability framing, or a demo that reads
+differently when performed by a different-gender creator), fill the
+\`gender_specific_notes\` field with a concise note naming the dependency
+and how a creator of the opposite gender would need to adapt it. When the
+video is gender-neutral, leave \`gender_specific_notes\` null — do not pad it.
+
+Also emit 5–10 \`ai_tags\` — short freeform strings spanning product category,
+audience signal, content format, and use case (examples: "lip-plumper",
+"before-after", "gen-z-female-audience", "objection-bait-hook",
+"cosmetic-result-demo", "stitch-reaction"). Tags are for filterable
+retrieval; lowercase, hyphen-separated, no leading punctuation.
 
 You will receive:
 - The full transcript as timestamped lines: [t_start-t_end] text
@@ -49,7 +57,8 @@ export const submitBreakdownTool = {
     required: [
       "hook", "problem", "twist", "solution", "cta",
       "tonality", "authenticity_signals", "pacing_notes",
-      "buyer_psychology_levers", "visual_style_notes", "male_creator_relevance",
+      "buyer_psychology_levers", "visual_style_notes",
+      "gender_specific_notes", "ai_tags",
     ],
     properties: {
       hook: {
@@ -107,7 +116,8 @@ export const submitBreakdownTool = {
       pacing_notes: { type: "string" },
       buyer_psychology_levers: { type: "array", items: { type: "string" } },
       visual_style_notes: { type: "string" },
-      male_creator_relevance: { type: "string" },
+      gender_specific_notes: { type: ["string", "null"] },
+      ai_tags: { type: "array", items: { type: "string" } },
     },
   },
 } as const satisfies Anthropic.Tool;
@@ -118,6 +128,10 @@ type CallArgs = {
     view_count: number | bigint | null;
     niche_tag: string | null;
     duration_seconds: number;
+    creator_gender: "male" | "female" | "unknown";
+    brand: string | null;
+    product_name: string | null;
+    user_notes: string | null;
   };
   transcriptLines: { t_start: number; t_end: number; text: string }[];
   frames: { t_seconds: number; base64: string }[];
@@ -140,10 +154,14 @@ export async function callClaudeBreakdown(
       text:
         `Video metadata:\n` +
         `- Creator: @${m.creator_handle ?? "unknown"}\n` +
+        `- Creator gender: ${m.creator_gender}\n` +
+        `- Brand: ${m.brand ?? "unknown"}\n` +
+        `- Product: ${m.product_name ?? "unknown"}\n` +
         `- Views: ${m.view_count ?? "unknown"}\n` +
         `- Niche tag: ${m.niche_tag ?? "unknown"}\n` +
-        `- Duration: ${m.duration_seconds}s\n\n` +
-        `Transcript:\n${transcriptText}\n\n` +
+        `- Duration: ${m.duration_seconds}s\n` +
+        (m.user_notes ? `- User notes: ${m.user_notes}\n` : "") +
+        `\nTranscript:\n${transcriptText}\n\n` +
         `Key frames (in order):`,
     },
     ...frames.flatMap(
@@ -162,8 +180,8 @@ export async function callClaudeBreakdown(
   const raw = await anthropic.messages.create({
     model: BREAKDOWN_MODEL,
     // Real breakdowns run ~2.5-3k output tokens because the tactic-naming +
-    // authenticity signals fields are intentionally rich. 2000 truncates the
-    // last field (male_creator_relevance) — 4000 gives headroom.
+    // authenticity signals fields are intentionally rich. 4000 leaves headroom
+    // for ai_tags + gender_specific_notes without truncation.
     max_tokens: 4000,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content }],

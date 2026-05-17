@@ -15,7 +15,13 @@ type Body = {
   creatorHandle?: string;
   viewCount?: number;
   nicheTag?: string;
+  creatorGender?: "male" | "female" | "unknown";
+  brand?: string | null;
+  productName?: string | null;
+  userNotes?: string | null;
 };
+
+const VALID_GENDERS = new Set(["male", "female", "unknown"]);
 
 export async function POST(req: Request) {
   const body = (await req.json()) as Body;
@@ -27,6 +33,11 @@ export async function POST(req: Request) {
     );
   }
 
+  const creatorGender =
+    body.creatorGender && VALID_GENDERS.has(body.creatorGender)
+      ? body.creatorGender
+      : "unknown";
+
   const supabase = createAdminClient();
   const { data: video, error } = await supabase
     .from("videos")
@@ -36,6 +47,10 @@ export async function POST(req: Request) {
       creator_handle: body.creatorHandle ?? null,
       view_count: body.viewCount ?? null,
       niche_tag: body.nicheTag ?? null,
+      creator_gender: creatorGender,
+      brand: body.brand ?? null,
+      product_name: body.productName ?? null,
+      user_notes: body.userNotes ?? null,
       status: "uploaded",
     })
     .select("id")
