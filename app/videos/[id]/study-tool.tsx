@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Chunk = { id: string; chunk_index: number; text: string; t_start: number; t_end: number };
 type Frame = { frame_index: number; t_seconds: number; signed_url: string };
@@ -9,13 +9,39 @@ export function StudyTool({
   videoUrl,
   chunks,
   frames,
+  initialT,
 }: {
   videoUrl: string;
   chunks: Chunk[];
   frames: Frame[];
+  initialT?: number;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [currentTime, setCurrentTime] = useState(0);
+
+  // Deep-link seek: when /videos/[id]?t=N lands, jump to that moment as soon
+  // as metadata is loadable. If the video element was cached and metadata
+  // already arrived before this effect attached, seek immediately; otherwise
+  // wait for the one-shot loadedmetadata event.
+  useEffect(() => {
+    if (initialT === undefined || initialT === null) return;
+    const el = videoRef.current;
+    if (!el) return;
+    const apply = () => {
+      el.currentTime = initialT;
+      void el.play().catch(() => undefined);
+    };
+    if (el.readyState >= 1) {
+      apply();
+      return;
+    }
+    const once = () => {
+      apply();
+      el.removeEventListener("loadedmetadata", once);
+    };
+    el.addEventListener("loadedmetadata", once);
+    return () => el.removeEventListener("loadedmetadata", once);
+  }, [initialT]);
 
   const seek = (t: number) => {
     const el = videoRef.current;

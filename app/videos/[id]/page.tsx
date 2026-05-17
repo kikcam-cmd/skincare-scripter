@@ -8,16 +8,28 @@ import { Button } from "@/components/ui/button";
 import { RefreshOnPending } from "./refresh-on-pending";
 import { StudyTool } from "./study-tool";
 import { SimilarVideos } from "./similar-videos";
+import {
+  EditableMetadata,
+  type Suggestions,
+  type VideoMetadataFields,
+} from "./editable-metadata";
 
 const TERMINAL: ReadonlyArray<string> = ["analyzed", "embedded", "failed", "duplicate"];
 const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour — page re-renders refresh.
 
 export default async function VideoDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ t?: string }>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
+  const initialT =
+    sp.t !== undefined && !Number.isNaN(parseFloat(sp.t))
+      ? parseFloat(sp.t)
+      : undefined;
   const supabase = await createClient();
 
   const { data: video } = await supabase
@@ -67,6 +79,45 @@ export default async function VideoDetailPage({
     t_start: Number(c.t_start),
     t_end: Number(c.t_end),
   }));
+
+  // Distinct suggestion lists for the metadata edit form. Cheap at v0 scale;
+  // promote to a dedicated helper if other surfaces need the same data.
+  const { data: allMeta } = await admin
+    .from("videos")
+    .select("niche_tag, brand, product_name")
+    .neq("id", id);
+  const suggestions: Suggestions = (() => {
+    const niche = new Set<string>();
+    const brand = new Set<string>();
+    const product = new Set<string>();
+    for (const v of allMeta ?? []) {
+      if (v.niche_tag) niche.add(v.niche_tag as string);
+      if (v.brand) brand.add(v.brand as string);
+      if (v.product_name) product.add(v.product_name as string);
+    }
+    const sort = (s: Set<string>) => [...s].sort((a, b) => a.localeCompare(b));
+    return {
+      niche_tags: sort(niche),
+      brands: sort(brand),
+      products: sort(product),
+    };
+  })();
+
+  const metadataInitial: VideoMetadataFields = {
+    creator_handle: (video.creator_handle as string | null) ?? null,
+    view_count:
+      video.view_count === null || video.view_count === undefined
+        ? null
+        : Number(video.view_count),
+    posted_at: (video.posted_at as string | null) ?? null,
+    niche_tag: (video.niche_tag as string | null) ?? null,
+    brand: (video.brand as string | null) ?? null,
+    product_name: (video.product_name as string | null) ?? null,
+    creator_gender:
+      ((video.creator_gender as "male" | "female" | "unknown" | null) ?? "unknown"),
+    user_notes: (video.user_notes as string | null) ?? null,
+    ai_tags: Array.isArray(video.ai_tags) ? (video.ai_tags as string[]) : [],
+  };
 
   const isPending = !TERMINAL.includes(video.status);
 
@@ -135,7 +186,11 @@ export default async function VideoDetailPage({
         </Badge>
       </div>
 
-      <VideoMetadata video={video} />
+      <EditableMetadata
+        videoId={id}
+        initial={metadataInitial}
+        suggestions={suggestions}
+      />
 
 
       {video.status === "failed" && video.error_message && (
@@ -150,7 +205,12 @@ export default async function VideoDetailPage({
       )}
 
       {videoUrl && (
-        <StudyTool videoUrl={videoUrl} chunks={typedChunks} frames={signedFrames} />
+        <StudyTool
+          videoUrl={videoUrl}
+          chunks={typedChunks}
+          frames={signedFrames}
+          initialT={initialT}
+        />
       )}
 
       {isPending && !breakdown && (
@@ -184,46 +244,6 @@ export default async function VideoDetailPage({
         </Button>
       </form>
     </div>
-  );
-}
-
-function VideoMetadata({ video }: { video: Record<string, unknown> }) {
-  const brand = (video.brand as string | null) ?? null;
-  const product = (video.product_name as string | null) ?? null;
-  const gender = (video.creator_gender as string) ?? "unknown";
-  const notes = (video.user_notes as string | null) ?? null;
-  const aiTags = Array.isArray(video.ai_tags) ? (video.ai_tags as string[]) : [];
-  const hasAny = brand || product || gender !== "unknown" || notes || aiTags.length > 0;
-  if (!hasAny) return null;
-  return (
-    <Card>
-      <CardContent className="py-4 space-y-2 text-sm">
-        <div className="flex flex-wrap gap-x-4 gap-y-1">
-          {brand && <span><span className="text-muted-foreground">Brand:</span> {brand}</span>}
-          {product && <span><span className="text-muted-foreground">Product:</span> {product}</span>}
-          {gender !== "unknown" && (
-            <span><span className="text-muted-foreground">Creator:</span> {gender}</span>
-          )}
-        </div>
-        {notes && (
-          <div>
-            <div className="text-xs font-mono uppercase tracking-wide text-muted-foreground">
-              Notes
-            </div>
-            <div className="mt-1 whitespace-pre-wrap">{notes}</div>
-          </div>
-        )}
-        {aiTags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            {aiTags.map((tag) => (
-              <Badge key={tag} variant="outline" className="font-mono text-xs">
-                {tag}
-              </Badge>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
   );
 }
 

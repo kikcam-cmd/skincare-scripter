@@ -6,11 +6,19 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 ## Where we are right now
 
-**Phase:** **Slice 6 unified search shipped.** Migration applied to prod
-DB; build clean; SQL smoke tests pass (self-similarity = 1.0000, brand
-filter restricts correctly); browser-verified on prod
-(`https://skincare-scripter.vercel.app/search`, deploy
-`dpl_51NQfEaQ2C86eUQrsADR7SvJa5q7` / commit `21d8f2c`).
+**Phase:** **Slice 7 partial — deep links + editable metadata code
+complete, awaiting browser verification.** Slice 6 already shipped
+(`21d8f2c`); this round wires the deep-link half (`?t=N` seek-on-mount
+on `/videos/[id]`, `?chunk=N` scroll+highlight on `/knowledge/[id]`)
+and adds an inline editable metadata card on the video detail page
+(creator_handle, view_count, posted_at, niche_tag, brand, product_name,
+creator_gender, user_notes). PATCH route updates `videos` and
+propagates the three denormalized fields to `corpus_chunks.metadata`
+so the indexed `metadata->>'niche_tag'` doesn't go stale.
+
+**Deferred to a later Slice 7 round** (per scope check): clickable
+timestamps inside the BreakdownSummary card and a UI for editing
+source-trust constants.
 
 Semantic search across
 both corpora (videos + knowledge) via a single `search_corpus(query_embedding, ...filters)` RPC
@@ -81,22 +89,30 @@ Numbered list straight from `PLAN.md` "Risks & open questions" section. My recom
 | 5 | Knowledge ingestion (PDF/MD/TXT/pasted) | **shipped ✓** |
 | 5.5 | Metadata pivot: brand/product/gender/notes/ai_tags + neutral breakdown | **shipped ✓** |
 | 6 | Unified search across both corpora (now uses creator_gender/brand/product/ai_tags filters) | **shipped ✓** |
-| 7 | Polish (editable metadata, niche tags, clickable timestamps) | not started |
+| 7 | Polish (editable metadata, niche tags, clickable timestamps) | **partial · awaiting browser verify** (deep links + editable metadata done; clickable timestamps + trust UI deferred) |
 
 ## Next concrete action
 
-**Start Slice 7: polish.** Per `PLAN.md` §9:
-- Wire the `?t=N` deep-link on `/videos/[id]` so the study tool seeks
-  on mount (URL emitted by Slice 6 cards is already there).
-- Wire the `?chunk=N` deep-link on `/knowledge/[id]` so the matched
-  chunk scrolls into view + highlights.
-- Editable metadata on video detail (creator_handle, view_count,
-  niche_tag, brand, product_name, creator_gender, user_notes,
-  ai_tags) — the upload form sets these once; there's no edit path
-  today.
-- Clickable timestamps in breakdown panel that seek the video.
-- Niche-tag list management; promote source-trust constants to
-  editable form (still constants in v0).
+**Finish Slice 7 verification, then pick up the deferred half.** Browser
+checks below; once those pass, deferred items are:
+- Clickable timestamps inside the BreakdownSummary card (hook/problem/
+  twist/solution/cta spans) that seek the player to the relevant moment.
+- UI for editing source-trust constants — `lib/search/trust.ts` today.
+  PLAN §8 says "promote to DB in Phase 2"; this Slice 7 item is the
+  UI half (still backed by a constant if we don't migrate).
+
+**Browser smoke for the current round:**
+1. Open a search result link with `?t=N` (e.g. click any video card from
+   `/search`) — video player should auto-seek to ~N seconds and play.
+2. Open a knowledge search result with `?chunk=N` — the matching chunk
+   row should scroll into view with a 2-second highlight flash.
+3. On `/videos/[id]`, click Edit on the metadata card, set
+   creator_handle / view_count / posted_at / niche_tag, Save —
+   confirm the card returns to view mode showing the new values, and
+   verify `corpus_chunks.metadata->>'niche_tag'` matches via a SQL
+   spot-check.
+4. Re-search using the new niche_tag pill on `/search` — the just-tagged
+   video should appear in the filtered list.
 
 Open follow-ups (non-blocking):
 

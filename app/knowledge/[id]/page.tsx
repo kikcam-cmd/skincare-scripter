@@ -5,15 +5,23 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RefreshOnPending } from "../../videos/[id]/refresh-on-pending";
+import { ChunkHighlighter } from "./chunk-highlighter";
 
 const TERMINAL: ReadonlyArray<string> = ["embedded", "failed"];
 
 export default async function KnowledgeDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ chunk?: string }>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
+  const highlightChunkIndex =
+    sp.chunk !== undefined && !Number.isNaN(parseInt(sp.chunk, 10))
+      ? parseInt(sp.chunk, 10)
+      : null;
   const supabase = await createClient();
 
   const { data: item } = await supabase
@@ -35,6 +43,9 @@ export default async function KnowledgeDetailPage({
   return (
     <div className="mx-auto max-w-3xl px-6 py-10 space-y-6">
       {isPending && <RefreshOnPending intervalMs={3000} />}
+      {highlightChunkIndex !== null && (
+        <ChunkHighlighter chunkIndex={highlightChunkIndex} />
+      )}
 
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
@@ -95,7 +106,11 @@ export default async function KnowledgeDetailPage({
               {chunks.map((c) => {
                 const tag = formatCitation(c.page_number as number | null, c.section_label as string | null);
                 return (
-                  <li key={c.id as string} className="py-3 space-y-1">
+                  <li
+                    key={c.id as string}
+                    id={`chunk-${c.chunk_index}`}
+                    className="py-3 space-y-1 -mx-2 px-2 rounded transition-colors duration-700"
+                  >
                     <div className="text-[10px] font-mono uppercase tracking-wide text-muted-foreground">
                       #{c.chunk_index}
                       {tag && ` · ${tag}`}
