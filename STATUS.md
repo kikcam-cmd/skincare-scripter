@@ -6,21 +6,49 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 ## Where we are right now
 
-**Phase:** **Slice 3 shipped + smoke-tested; Slice 4 paused on OpenAI key.**
-Pipeline is fully idempotent (STEP gates + sha256 STEP 0 dedup). Both Slice 3
-smoke tests pass:
-- **Resume:** re-running an analyzed video skips every step (no Groq/Claude
-  calls, baseline counts unchanged).
+**Phase:** **Slice 3 shipped + smoke-tested; Slice 4 paused on key
+rotation.** Pipeline is fully idempotent (STEP gates + sha256 STEP 0
+dedup). Both Slice 3 smoke tests pass:
+- **Resume:** re-running an analyzed video skips every step (no
+  Groq/Claude calls, baseline counts unchanged).
 - **Dedup:** re-uploading an identical MP4 marks the new row
-  `status='duplicate'` with the canonical hash and `error_message='duplicate
-  of <id>'` before any external call.
+  `status='duplicate'` with the canonical hash and
+  `error_message='duplicate of <id>'` before any external call.
+
+**🚨 SECURITY — DO BEFORE ANYTHING ELSE in the next session.** Two leaks
+occurred 2026-05-16:
+1. User pasted an OpenAI key directly into chat → rotated.
+2. Agent ran `vercel env pull .env.local --yes` to recover from an
+   empty-file mistake; the harness echoed the full file contents into
+   the transcript, exposing every Vercel env var.
+
+**Keys requiring rotation** (none verified rotated as of session end):
+
+| key | rotate at | priority |
+|---|---|---|
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase dashboard → Settings → API Keys → reset service_role | **CRITICAL** — bypasses RLS |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | same page, rotate anon | high (RLS-bound but scoped) |
+| `ANTHROPIC_API_KEY` | console.anthropic.com → settings → keys | billing exposure |
+| `GROQ_API_KEY` | console.groq.com → keys | billing exposure |
+| `OPENAI_API_KEY` (post-first-rotation one) | platform.openai.com → API keys | billing exposure |
+| `APP_PASSWORD` | pick a new random string, set in Vercel only | Basic Auth gate on prod URL |
+
+`VERCEL_OIDC_TOKEN` was also exposed but is short-lived (~12h) — already
+expired or will be by next session, no action.
+
+Process: rotate at each source, then update Vercel via the
+**dashboard** (https://vercel.com/kikuchicameron-7255s-projects/skincare-scripter/settings/environment-variables).
+**Do NOT run `vercel env pull` or any command that materializes secrets
+into a file or stdout while an agent is driving** — see
+[[feedback-never-pull-secrets-in-agent-session]] in user memory. To
+restore `.env.local` after rotation, use the Vercel dashboard's
+"Download" button (UI-only), or have the user paste values manually.
 
 Slice 4 plan locked in (see "Slice 4 plan — ready to resume" below) but
-execution blocked: `OPENAI_API_KEY` isn't in Vercel or `.env.local` yet,
-and the embed step + similar-videos UI both depend on it. **Next session:**
-add the key, then resume from the locked plan and ship Slice 4 in one pass.
+execution blocked until key rotations are confirmed. After rotation,
+resume from the locked plan and ship Slice 4 in one pass.
 
-**Last updated:** 2026-05-16
+**Last updated:** 2026-05-16 (end-of-session save)
 
 ## Read these in order
 
@@ -73,14 +101,23 @@ Numbered list straight from `PLAN.md` "Risks & open questions" section. My recom
 
 ## Next concrete action
 
-1. **Get an OpenAI API key.** Sign in at https://platform.openai.com, create a key with embeddings access. Budget is microscopic (~$0.00006 per video per PLAN §3), default rate limits are fine.
-2. **Add it everywhere:**
-   - `vercel env add OPENAI_API_KEY` for production+preview+development (or via the API like the other secrets), encrypted
-   - `.env.local` for `npm run dev`
-3. **Tell me to resume Slice 4.** The plan in the next section is locked — no re-deciding needed, just execute.
+1. **Rotate the six leaked keys** (see "🚨 SECURITY" section above).
+   Update each at its source, then write the new value into Vercel via
+   the dashboard. Do **not** use `vercel env pull` or any other CLI that
+   echoes secrets — see [[feedback-never-pull-secrets-in-agent-session]].
+2. **Restore `.env.local`** via the Vercel dashboard's "Download" button
+   (Project → Settings → Env Vars). Manual paste from the dashboard also
+   works. Avoid CLI-based bulk pull.
+3. **Tell the agent "rotated"** to resume Slice 4. The plan in the next
+   section is locked — no re-deciding needed, just execute.
 
-Slice 3 smoke tests already completed in the 2026-05-16 session; nothing
-to verify before Slice 4.
+Open follow-up (non-blocking, in TaskList as #4):
+**Breakdown quality regression** — the breakdown produced for video
+`5d44a1de` (current Slice 3 code) was noticeably less detailed than the
+ones on the two pre-Slice-2 videos `611cdcaa` / `d21d7f8b`. Diff
+`raw_claude_response` across the three breakdown rows, check
+model/max_tokens/prompt version, look for truncation indicators.
+Investigate after Slice 4 ships unless quality blocks demos.
 
 ## Slice 4 plan — ready to resume
 
@@ -159,7 +196,8 @@ npx next build                                       # catch deploy-time issues
 ## Git history
 
 ```
-<this commit> Fix Slice 3 dedup unique-index + surface STEP 0 update errors
+<this commit> End-of-session save: capture key-rotation todo + Slice 4 entry state
+28ceb14 Fix Slice 3 dedup unique-index + surface STEP 0 update errors
 df6fa74 Record Slice 4 pause point in STATUS.md
 006660e Ship Slice 3: idempotent pipeline (step gates + STEP 0 sha256 dedup)
 5f29e55 Ship Slice 2: transcripts/frames persistence + study-tool UI
