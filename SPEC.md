@@ -72,7 +72,7 @@ Both flow into the same searchable corpus (pgvector), with separate detail views
 | Hosting | Vercel (Fluid Compute for the pipeline function) |
 | Transcription | Groq Whisper API |
 | Vision + analysis | Claude Sonnet 4.6 (`claude-sonnet-4-6`) |
-| Embeddings | TBD — likely OpenAI `text-embedding-3-small` or Voyage AI |
+| Embeddings | OpenAI `text-embedding-3-small` (1536d, shipped Slice 4) |
 | Video tooling | `ffmpeg-static` inside the Vercel function |
 
 Auth: none for v0 (single-user, possibly behind Vercel deployment protection).

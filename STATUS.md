@@ -6,30 +6,34 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 ## Where we are right now
 
-**Phase:** **v0 corpus-building half is feature-complete on prod**
-(latest commit `c6eb1e7`, deploy `dpl_DouFEUi6ezdoaBsHvdZNac317KUJ`
-READY, working tree clean). Slices 1–7 shipped:
-idempotent pipeline + sha256 dedup; transcripts/frames persistence
-+ study-tool UI; Claude vision breakdown; embeddings + similar-videos
-panel; knowledge ingestion (PDF/MD/TXT/pasted); metadata pivot
-(brand/product/creator_gender/user_notes/ai_tags); unified semantic
-search across both corpora with URL-driven filter pills; `?t=N` and
-`?chunk=N` deep links; inline editable metadata on video detail with
+**Phase:** **v0 corpus-building half is feature-complete on prod;
+Phase 2 planning doc drafted, awaiting decisions on three open questions
+before code starts.** Latest commit `445af80` (clean v0 handoff),
+deploy `dpl_DouFEUi6ezdoaBsHvdZNac317KUJ` READY, working tree clean.
+Slices 1–7 shipped: idempotent pipeline + sha256 dedup;
+transcripts/frames persistence + study-tool UI; Claude vision breakdown;
+embeddings + similar-videos panel; knowledge ingestion (PDF/MD/TXT/pasted);
+metadata pivot (brand/product/creator_gender/user_notes/ai_tags); unified
+semantic search across both corpora with URL-driven filter pills; `?t=N`
+and `?chunk=N` deep links; inline editable metadata on video detail with
 corpus_chunks.metadata propagation; clickable BreakdownSummary
 timestamps; DB-backed source-trust admin (`/trust`).
 
-Next session starts **Phase 2: script generator** — the RAG-driven
-half this corpus was built to feed. See "Next concrete action" below.
+**Phase 2 (script generator) kickoff:** `PLAN_PHASE2.md` drafted
+2026-05-17. Read it for the spine — three load-bearing open questions
+(multi-tenancy model, auth provider, script input/output contract) block
+the slice plan. See "Next concrete action" below.
 
-**Last updated:** 2026-05-17 (Slice 7 fully shipped, v0 close-out)
+**Last updated:** 2026-05-17 (PLAN_PHASE2.md drafted)
 
 ## Read these in order
 
 1. **`SPEC.md`** — the brief. Positioning, scope, locked decisions. Doesn't change often. SPEC's "Out of scope for v0 (future phases)" section is the Phase 2 starting point.
-2. **`PLAN.md`** — the **v0** implementation plan (now historical). Carries a "partially superseded by Slice 5.5" banner; the architecture, pipeline shape, embedding choice, and search §8 are still accurate; the prompt content and breakdown schema have moved on. **Phase 2 will need its own plan doc** — there is none yet.
-3. **This file** — current state + next action.
+2. **`PLAN.md`** — the **v0** implementation plan (now historical). Carries a "partially superseded by Slice 5.5" banner; the architecture, pipeline shape, embedding choice, and search §8 are still accurate; the prompt content and breakdown schema have moved on.
+3. **`PLAN_PHASE2.md`** — Phase 2 (script generator) planning doc, drafted 2026-05-17. Parametric on three open questions in its §2 — those resolve before any Phase 2 code. Once resolved, this file gets a Slice-5.5-style "decisions locked" banner and the slice plan in §8 fills in.
+4. **This file** — current state + next action.
 
-If you only have time for one when picking up v0 context: `PLAN.md`. For Phase 2 kickoff: `SPEC.md` §"Out of scope for v0" + this file's "Next concrete action".
+If you only have time for one when picking up v0 context: `PLAN.md`. For Phase 2 kickoff: `PLAN_PHASE2.md` + this file's "Next concrete action".
 
 ## What's locked (don't re-litigate)
 
@@ -75,35 +79,32 @@ Numbered list from `PLAN.md` "Risks & open questions". Resolutions noted; left h
 
 ## Next concrete action
 
-**Start Phase 2: script generator.** This is the RAG-driven half the
-v0 corpus was built to feed. Suggested kickoff sequence:
+**Resolve the three load-bearing open questions in `PLAN_PHASE2.md` §2.**
+The slice plan in §8 is a placeholder until these land. They are:
 
-1. Re-read `SPEC.md` §"Out of scope for v0" + §"Decisions already locked"
-   so the Phase 2 framing is current in your head.
-2. Draft a new planning doc (working name `PLAN_PHASE2.md`) — start from
-   what's open per SPEC: auth/users table shape, multi-tenant data scoping,
-   request-time `target_creator_gender` param, RAG retrieval ranker
-   (reuse `lib/search/{query,rank,trust}.ts`), Claude prompt for script
-   generation, framework library (Hormozi/etc) as input, output schema +
-   UI for drafts. Surface every open question Cameron should weigh in on
-   *before* writing code, the same way the v0 PLAN did.
-3. Slice it small (echo v0's "smallest E2E first" pattern: minimal auth
-   + minimal RAG → one script draft from one query).
+1. **§2.1 Multi-tenancy model** — shared corpus + per-user drafts
+   (recommended, matches SPEC) vs. per-affiliate corpus vs. hybrid.
+   Decides whether `videos` / `knowledge_items` / `corpus_chunks` need
+   an `owner_id` + RLS, which is a large blast radius.
+2. **§2.2 Auth provider** — Supabase Auth (recommended, inertia + same
+   project + cheaper) vs. Clerk (Marketplace, better UX, extra vendor)
+   vs. custom. If Supabase Auth: OTP codes not magic links per
+   [[feedback-email-link-prefetch]].
+3. **§2.3 Script input/output contract** — structured form
+   (recommended, maps 1:1 to existing search filters) vs. free-form
+   vs. hybrid; single draft (recommended for Slice 1) vs. variants vs.
+   iterative refinement. Schema candidate is sketched in PLAN_PHASE2 §2.3.
 
-What carries over for free: the entire `corpus_chunks` corpus + search
-RPC + rank pipeline; `text-embedding-3-small` (1536d); Basic Auth proxy;
-Supabase project + Vercel deploy. What's net-new: auth/users, script
-prompt, framework ingestion (probably reuses knowledge pipeline), draft
-storage table.
+Once §2 resolves, PLAN_PHASE2 gets a "decisions locked" banner, §3-§5
+become single-branch concrete, §8 fills in real ship criteria, and code
+starts on Slice 1 (smallest E2E: auth + structured form + single draft).
 
-**Decision Phase 2 will need to make early:** `proxy.ts` Basic-Auths
-every route today. When real auth lands, choose between (a) keeping
-`proxy.ts` as a coarse outer gate in front of real auth (defense in
-depth — friendly for a single-creator beta where only invited people
-have the password) or (b) removing it once the real auth surface is
-verified. Don't leave both running silently — passwords leak, real
-auth becomes load-bearing, and the proxy turns into a confusing
-artifact. Bake this into the auth-slice plan.
+Already pre-decided in PLAN_PHASE2 (no Cameron action needed):
+- §2.4 `proxy.ts` disposition — keep as outer gate during invite-only
+  beta, remove in a dedicated cutover slice after real auth is verified
+- §2.5 `target_creator_gender` — `profiles` default + per-request override
+- §2.7 Pricing — invite-only beta, Cameron eats cost, Sonnet 4.6 throughout
+- §2.8 Phase 3 perf feedback stays out of Phase 2
 
 Open follow-ups from v0 (non-blocking, all could roll into Phase 2 if
 they bite):

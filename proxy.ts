@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { timingSafeEqual } from 'node:crypto'
 
 export function proxy(request: NextRequest) {
   const expected = process.env.APP_PASSWORD
@@ -15,7 +16,9 @@ export function proxy(request: NextRequest) {
     const decoded = atob(header.slice('Basic '.length))
     const idx = decoded.indexOf(':')
     const password = idx === -1 ? '' : decoded.slice(idx + 1)
-    if (password === expected) {
+    const a = Buffer.from(password)
+    const b = Buffer.from(expected)
+    if (a.length === b.length && timingSafeEqual(a, b)) {
       return NextResponse.next()
     }
   }

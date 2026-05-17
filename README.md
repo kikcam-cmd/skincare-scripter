@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# skincare-scripter
 
-## Getting Started
+TikTok scripting copilot for the skincare niche — a self-curated corpus of
+viral video breakdowns + framework knowledge, feeding a RAG-driven script
+generator. Single-creator ingestion (Cameron); script generation opens to
+invited affiliate creators in Phase 2.
 
-First, run the development server:
+Personal project, not for redistribution.
+
+## Where to start reading
+
+Order matters — these are the source-of-truth docs:
+
+1. [`STATUS.md`](./STATUS.md) — rolling session-handoff. Current state,
+   next concrete action, known issues. **Read first when picking up.**
+2. [`SPEC.md`](./SPEC.md) — the brief. Positioning, scope, locked decisions.
+3. [`PLAN.md`](./PLAN.md) — v0 implementation plan (historical reference;
+   v0 shipped).
+4. [`PLAN_PHASE2.md`](./PLAN_PHASE2.md) — Phase 2 (script generator)
+   planning doc. Three open questions in §2 gate the slice plan.
+5. [`AGENTS.md`](./AGENTS.md) — agent-targeted notes (Next.js 16 conventions,
+   etc.).
+
+## Local dev
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev                              # next dev (port 3001 if 3000 busy)
+npm run process-video <video-uuid>       # run pipeline standalone without HTTP
+npm run process-knowledge <id>           # same for knowledge ingestion
+npx tsc --noEmit                         # type check
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Required env vars are documented in `STATUS.md` § "Required env vars".
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Auto-deployed to `skincare-scripter.vercel.app` on push to `main`, gated by
+Basic Auth (`APP_PASSWORD` env var, enforced in `proxy.ts`). See `STATUS.md`
+§ "Vercel Standard Protection alias gap" for why proxy-level auth is the
+real gate.
