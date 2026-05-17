@@ -13,6 +13,7 @@ import {
   type Suggestions,
   type VideoMetadataFields,
 } from "./editable-metadata";
+import { SeekButton } from "./seek-button";
 
 const TERMINAL: ReadonlyArray<string> = ["analyzed", "embedded", "failed", "duplicate"];
 const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour — page re-renders refresh.
@@ -258,11 +259,18 @@ function BreakdownSummary({ breakdown }: { breakdown: Record<string, unknown> })
         {spans.map((key) => {
           const span = breakdown[key] as { text?: string; t_start?: number; t_end?: number } | null;
           if (!span) return null;
+          const t = span.t_start;
           return (
             <div key={key}>
-              <div className="text-xs font-mono uppercase tracking-wide text-muted-foreground">
-                {key} · {span.t_start?.toFixed(1)}–{span.t_end?.toFixed(1)}s
-              </div>
+              {typeof t === "number" ? (
+                <SeekButton t={t}>
+                  {key} · {t.toFixed(1)}–{span.t_end?.toFixed(1)}s
+                </SeekButton>
+              ) : (
+                <div className="text-xs font-mono uppercase tracking-wide text-muted-foreground">
+                  {key}
+                </div>
+              )}
               <div className="text-sm mt-1">{span.text}</div>
             </div>
           );

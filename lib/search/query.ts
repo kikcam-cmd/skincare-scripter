@@ -6,6 +6,7 @@
 import OpenAI from "openai";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rankAndTrim, type RankInput } from "./rank";
+import { loadTrustMap } from "./trust";
 
 const EMBED_MODEL = "text-embedding-3-small";
 const RPC_K = 30;
@@ -57,10 +58,11 @@ export async function searchCorpus(
   if (!trimmed) return [];
 
   const openai = new OpenAI();
-  const embedRes = await openai.embeddings.create({
-    model: EMBED_MODEL,
-    input: trimmed,
-  });
+  // Embed query + load trust map in parallel — both feed the same re-rank.
+  const [embedRes, trustMap] = await Promise.all([
+    openai.embeddings.create({ model: EMBED_MODEL, input: trimmed }),
+    loadTrustMap(),
+  ]);
   const embedding = embedRes.data[0]?.embedding;
   if (!embedding) throw new Error("search: embedding returned empty");
 
@@ -79,7 +81,7 @@ export async function searchCorpus(
   if (error) throw new Error(`search_corpus RPC failed: ${error.message}`);
 
   const rows = (data ?? []) as SearchRow[];
-  return rankAndTrim(rows, FINAL_K);
+  return rankAndTrim(rows, trustMap, FINAL_K);
 }
 
 // Surfaces the filter pill options. Cheap (small distinct lists) — called from

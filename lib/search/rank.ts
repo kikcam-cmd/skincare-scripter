@@ -10,7 +10,7 @@
 // doesn't reset it. virality and source_trust are mutually exclusive by
 // source_type and contribute 0 on the wrong side.
 
-import { trustForLabel } from "./trust";
+import { trustForLabel, type TrustMap } from "./trust";
 
 export type RankInput = {
   similarity: number;
@@ -40,7 +40,7 @@ export function viralityScore(viewCount: number | null): number {
   return Math.min(1, Math.log10(viewCount) / 7);
 }
 
-export function finalScore(input: RankInput): number {
+export function finalScore(input: RankInput, trustMap: TrustMap): number {
   const parentDate =
     input.source_type === "video"
       ? input.video_posted_at ?? input.video_created_at
@@ -50,15 +50,25 @@ export function finalScore(input: RankInput): number {
     input.source_type === "video" ? viralityScore(input.video_view_count) : 0;
   const trust =
     input.source_type === "knowledge"
-      ? // trust runs ~0.5–1.5; normalize to 0..1 around 1.0 baseline
-        Math.min(1, Math.max(0, (trustForLabel(input.knowledge_source_label) - 0.5) / 1.0))
+      ? // trust runs ~0–2; normalize to 0..1 around 1.0 baseline
+        Math.min(
+          1,
+          Math.max(
+            0,
+            (trustForLabel(trustMap, input.knowledge_source_label) - 0.5) / 1.0,
+          ),
+        )
       : 0;
   return input.similarity + 0.05 * recency + 0.08 * virality + 0.05 * trust;
 }
 
-export function rankAndTrim<T extends RankInput>(rows: T[], limit = 10): (T & { final: number })[] {
+export function rankAndTrim<T extends RankInput>(
+  rows: T[],
+  trustMap: TrustMap,
+  limit = 10,
+): (T & { final: number })[] {
   return rows
-    .map((r) => ({ ...r, final: finalScore(r) }))
+    .map((r) => ({ ...r, final: finalScore(r, trustMap) }))
     .sort((a, b) => b.final - a.final)
     .slice(0, limit);
 }

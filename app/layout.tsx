@@ -38,6 +38,7 @@ export default function RootLayout({
               <Link href="/" className="hover:text-foreground">Upload</Link>
               <Link href="/knowledge" className="hover:text-foreground">Knowledge</Link>
               <Link href="/search" className="hover:text-foreground">Search</Link>
+              <Link href="/trust" className="hover:text-foreground">Trust</Link>
             </nav>
           </div>
         </header>

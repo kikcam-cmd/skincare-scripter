@@ -6,25 +6,18 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 ## Where we are right now
 
-**Phase:** **Slice 7 (partial) shipped — deep links + editable
-metadata.** Browser-verified on prod (deploy
-`dpl_6rGq8Uys6qU2nKK95VgPrUBxHAQh` / commit `a407899`). Search result
-cards now actually land where they say they will: `?t=N` seeks the
-study-tool player on mount (readyState-aware so cached videos still
-seek), `?chunk=N` scrolls the matching knowledge chunk into view with
-a 2s highlight flash. Inline editable metadata card on `/videos/[id]`
-covers creator_handle, view_count, posted_at, niche_tag (with native
-`<datalist>` autocomplete from existing values), brand, product_name,
-creator_gender, user_notes. PATCH route updates `videos` and propagates
-the three denormalized fields (niche_tag, view_count, creator_handle)
-to `corpus_chunks.metadata` so the Slice 4 indexed
-`metadata->>'niche_tag'` doesn't go stale.
-
-**Deferred to a follow-up Slice 7 round:** clickable timestamps inside
-the BreakdownSummary card (hook/problem/twist/solution/cta spans seek
-the player) and a UI for editing source-trust constants
-(`lib/search/trust.ts` today — PLAN §8 calls for promoting to a DB
-table in Phase 2).
+**Phase:** **Slice 7 final round — code complete, awaiting browser
+verification.** Clickable timestamps in BreakdownSummary spans (each
+of hook/problem/twist/solution/cta is now a SeekButton that fires a
+CustomEvent the StudyTool listens for — clean separation, no need to
+lift the breakdown card into a client component). Source-trust
+constants promoted from `lib/search/trust.ts` to a real `source_trust`
+DB table (migration 0009, seeded with the existing values); new
+`/trust` admin page lists every label in the table OR used by a
+knowledge item with per-row editable weight + notes. PATCH /api/trust
+upserts; rank.ts now takes the trust map as a parameter (stays pure);
+query.ts loads the map in parallel with the OpenAI embedding so search
+adds zero round-trip overhead.
 
 Semantic search across
 both corpora (videos + knowledge) via a single `search_corpus(query_embedding, ...filters)` RPC
@@ -95,23 +88,27 @@ Numbered list straight from `PLAN.md` "Risks & open questions" section. My recom
 | 5 | Knowledge ingestion (PDF/MD/TXT/pasted) | **shipped ✓** |
 | 5.5 | Metadata pivot: brand/product/gender/notes/ai_tags + neutral breakdown | **shipped ✓** |
 | 6 | Unified search across both corpora (now uses creator_gender/brand/product/ai_tags filters) | **shipped ✓** |
-| 7 | Polish (editable metadata, niche tags, clickable timestamps) | **partial · shipped ✓** (deep links + editable metadata; clickable timestamps + trust UI deferred to follow-up) |
+| 7 | Polish (editable metadata, niche tags, clickable timestamps) | **complete · awaiting browser verify** (final round: clickable timestamps + DB-backed trust UI on top of the earlier deep-links + editable-metadata ship) |
 
 ## Next concrete action
 
-**Pick up the deferred Slice 7 round, or move past v0.** v0 corpus-
-building half (Slices 1–7 partial) is now feature-complete on prod.
-Remaining v0 polish items:
-- Clickable timestamps inside the BreakdownSummary card so
-  hook/problem/twist/solution/cta spans seek the player to their
-  `t_start`. Small follow-up; the seek primitive already exists in
-  `StudyTool` and the spans already carry `t_start`/`t_end`.
-- UI for editing source-trust constants. PLAN §8 calls for promoting
-  `lib/search/trust.ts` to a DB table in Phase 2; the v0 UI half is
-  optional if Cameron is fine editing the constant directly until then.
+**Verify Slice 7 final round in a browser, then flip to shipped, then
+move to Phase 2.**
 
-After those, the natural next move is **Phase 2: script generator** —
-the RAG-driven half this entire corpus was built to feed. PLAN §1
+Browser smoke for the final round:
+1. On `/videos/[id]` of any embedded video, the Breakdown card's
+   hook/problem/twist/solution/cta lines should now be buttons —
+   click any one, the video player above seeks + plays from that
+   moment.
+2. Visit `/trust`. Should list `Hormozi - $100M Offers` (1.2) and
+   `personal notes` (0.7), plus any source_label used by an existing
+   knowledge item that isn't in the table (shown at default 1.0).
+   Bump a weight, click Save, refresh — the new value should stick.
+3. Re-run a `/search` query that returns a knowledge result with the
+   bumped label — the ranking change should reflect the new weight.
+
+Then the natural next move is **Phase 2: script generator** — the
+RAG-driven half this entire corpus was built to feed. PLAN §1
 describes the architecture (RAG retrieval + Claude); SPEC.md frames
 the multi-tenant Phase 2 affiliate-creator audience.
 

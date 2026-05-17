@@ -1,18 +1,33 @@
-// Per source_label trust weights for the knowledge half of the corpus.
-// Editable as a constant in v0; promote to a DB table in Phase 2 (PLAN §8).
+// Per source_label trust weights, backed by the source_trust table
+// (migration 0009). Promoted from a hardcoded constant per PLAN §8 once
+// the /trust admin UI landed in Slice 7 (final round).
 //
-// Range is loose: 0.5 (low-trust scraped notes) to ~1.5 (authoritative books).
-// Default for unknown labels is 1.0 so adding a new source doesn't penalize
-// it before Cameron weighs in.
+// Range: 0–2 (CHECK enforced). Default for unknown labels is 1.0 so adding
+// a new source doesn't penalize it before Cameron weighs in.
 
-const TRUST_BY_LABEL: Record<string, number> = {
-  "Hormozi - $100M Offers": 1.2,
-  "personal notes": 0.7,
-};
+import { createAdminClient } from "@/lib/supabase/admin";
+
+export type TrustMap = Map<string, number>;
 
 const DEFAULT_TRUST = 1.0;
 
-export function trustForLabel(label: string | null | undefined): number {
+export async function loadTrustMap(): Promise<TrustMap> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("source_trust")
+    .select("label, weight");
+  if (error) throw new Error(`source_trust read failed: ${error.message}`);
+  const map: TrustMap = new Map();
+  for (const row of data ?? []) {
+    map.set(row.label as string, Number(row.weight));
+  }
+  return map;
+}
+
+export function trustForLabel(
+  map: TrustMap,
+  label: string | null | undefined,
+): number {
   if (!label) return DEFAULT_TRUST;
-  return TRUST_BY_LABEL[label] ?? DEFAULT_TRUST;
+  return map.get(label) ?? DEFAULT_TRUST;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { SEEK_EVENT } from "./seek-button";
 
 type Chunk = { id: string; chunk_index: number; text: string; t_start: number; t_end: number };
 type Frame = { frame_index: number; t_seconds: number; signed_url: string };
@@ -49,6 +50,17 @@ export function StudyTool({
     el.currentTime = t;
     void el.play();
   };
+
+  // Listen for seek requests fired by SeekButton (clickable breakdown
+  // timestamps elsewhere on the page).
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ t: number }>).detail;
+      if (typeof detail?.t === "number") seek(detail.t);
+    };
+    window.addEventListener(SEEK_EVENT, handler);
+    return () => window.removeEventListener(SEEK_EVENT, handler);
+  }, []);
 
   return (
     <div className="space-y-4">
