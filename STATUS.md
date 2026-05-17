@@ -6,29 +6,35 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 ## Where we are right now
 
-**Phase:** **Slice 5.5 metadata pivot shipped + backfilled.** Positioning
-dropped the male-in-female-niche framing entirely. Tool is now skincare-
-focused, multi-creator-gender on the consumer side (ingestion is still
-single-user). Every video carries `brand`, `product_name`,
-`creator_gender` (enum: male/female/unknown), `user_notes`, and Claude-
-extracted `ai_tags` (text[]). Breakdown swapped
-`male_creator_relevance` → `gender_specific_notes` (nullable; Claude
-fills only when a beat materially depends on creator gender).
+**Phase:** **Slice 6 unified search — code complete, awaiting browser
+verification.** Migration applied to prod DB; build clean; SQL smoke
+tests pass (self-similarity = 1.0000, brand filter restricts correctly).
+But CLAUDE.md requires browser verification before marking shipped, and
+local dev is gated by the same Basic Auth proxy as prod (no secret
+materialization allowed in agent sessions), so Cameron needs to load
+`/search` in a browser and confirm the UI renders + a real query
+returns results + a pill toggle round-trips through the URL.
 
-Backfill: deleted breakdowns + corpus_chunks for the 2 surviving videos
-(`5d44a1de` Dr. Melaxin lip plumper / female creator; `d21d7f8b`
-Medicube blackhead mask / male creator), re-tagged metadata via SQL,
-re-ran pipeline. Both now `embedded` with 10 ai_tags each and
-substantive `gender_specific_notes` (filler-savings framing flagged as
-female-coded; male-doing-skincare flagged as pattern-interrupt).
+Semantic search across
+both corpora (videos + knowledge) via a single `search_corpus(query_embedding, ...filters)` RPC
+that LEFT JOINs `videos` and `knowledge_items` so the caller gets card-
+rendering + ranking columns in one round trip. supabase-js can't express
+the `<=>` operator through PostgREST, so an RPC is the only practical
+shape (mirrors Slice 4's `similar_videos`). In-app re-ranking applies
+the PLAN §8 weighted formula (cosine + recency + virality + source_trust).
 
-**Pre-existing bug found during backfill:** STEP 4 was inserting
-`corpus_chunks` rows without `source_type`, which has been NOT NULL
-since Slice 5 (only worked before because Slice 5's migration
-backfilled existing rows). Fixed in the same slice: added
-`source_type: 'video'` to the video pipeline's insert.
+URL-driven filter pills (no client state): source_type, niche_tag,
+creator_gender, brand, product_name, ai_tag, source_label. Pill options
+are loaded from distinct values in `videos` + `knowledge_items`.
 
-**Last updated:** 2026-05-16 (Slice 5.5 metadata pivot ship)
+Result cards emit deep-link URLs (`/videos/[id]?t=N`,
+`/knowledge/[id]?chunk=N`) but seek-on-mount / scroll-to-chunk wiring
+is deferred to Slice 7 (which owns "clickable timestamps").
+
+Smoke-tested against the prod DB: self-similarity round-trip = 1.0000;
+ai_tag/brand filter restricts to expected rows.
+
+**Last updated:** 2026-05-16 (Slice 6 unified search ship)
 
 ## Read these in order
 
@@ -77,28 +83,23 @@ Numbered list straight from `PLAN.md` "Risks & open questions" section. My recom
 | 4 | Embeddings + similar-videos panel | **shipped ✓** |
 | 5 | Knowledge ingestion (PDF/MD/TXT/pasted) | **shipped ✓** |
 | 5.5 | Metadata pivot: brand/product/gender/notes/ai_tags + neutral breakdown | **shipped ✓** |
-| 6 | Unified search across both corpora (now uses creator_gender/brand/product/ai_tags filters) | not started |
+| 6 | Unified search across both corpora (now uses creator_gender/brand/product/ai_tags filters) | **code complete · awaiting browser verify** |
 | 7 | Polish (editable metadata, niche tags, clickable timestamps) | not started |
 
 ## Next concrete action
 
-**Start Slice 6: unified search.** Per `PLAN.md` §8, with metadata-pivot
-updates:
-- New `/search` page with a single semantic-search input + filter
-  pills (source_type all/video/knowledge, niche_tag, source_label,
-  **creator_gender (videos only), brand, product_name, ai_tags**).
-- `lib/search/query.ts`: embed the query, run
-  `select ... from corpus_chunks order by embedding <=> $1 limit 30`
-  filtered by pills (JOIN videos for gender/brand/product/ai_tags
-  filters; chunk metadata stays denormalized only for niche_tag etc.),
-  then re-rank in-app with the weighted score from PLAN §8
-  (cosine + recency + virality + source_trust).
-- `lib/search/trust.ts`: hardcoded source-label trust weights.
-- Result cards: snippet + source-type badge + citation
-  (`source_label · p.N · section` for knowledge,
-  `brand · product · @t_start` for videos) + similarity %.
-- Video result → `/videos/[id]?t=<t_start>` jumps player to moment.
-- Knowledge result → `/knowledge/[id]?chunk=<id>` highlights chunk.
+**Start Slice 7: polish.** Per `PLAN.md` §9:
+- Wire the `?t=N` deep-link on `/videos/[id]` so the study tool seeks
+  on mount (URL emitted by Slice 6 cards is already there).
+- Wire the `?chunk=N` deep-link on `/knowledge/[id]` so the matched
+  chunk scrolls into view + highlights.
+- Editable metadata on video detail (creator_handle, view_count,
+  niche_tag, brand, product_name, creator_gender, user_notes,
+  ai_tags) — the upload form sets these once; there's no edit path
+  today.
+- Clickable timestamps in breakdown panel that seek the video.
+- Niche-tag list management; promote source-trust constants to
+  editable form (still constants in v0).
 
 Open follow-ups (non-blocking):
 
@@ -119,6 +120,64 @@ Open follow-ups (non-blocking):
    they were never transcribed — the value just means "parsed." Adding
    a dedicated `parsed` enum value is heavy for a label-only change;
    live with the abuse for now.
+5. **HNSW + WHERE-filtered search may return <k candidates** when filter
+   pills are highly selective: pgvector's HNSW walks the graph then
+   filters, so a `limit 30` post-filter can drop below 30 rows. Invisible
+   at current corpus size (2 videos + a few knowledge items); revisit if
+   filtered searches start returning thin result lists.
+6. **Slice 6 deep-link URLs emit `?t=N` / `?chunk=N`** but the detail
+   pages don't read them yet — seek-on-mount + scroll-to-chunk wiring
+   is scoped to Slice 7. Cards link correctly today but land at the
+   top of the page.
+
+## Slice 6 shipped — what landed
+
+- **Migration `0008_search_corpus.sql`:** `search_corpus(query_embedding,
+  p_source_type, p_niche_tag, p_source_label, p_creator_gender, p_brand,
+  p_product_name, p_ai_tag, k)` RPC. LEFT JOIN `videos` + `knowledge_items`
+  so the caller gets parent metadata (filename, brand/product/gender,
+  ai_tags, view_count, posted_at; title/kind/source_label) in one round
+  trip. Filters compile away when null (`p_X is null or col = p_X`).
+- **`lib/search/trust.ts`:** hardcoded `source_label → weight` map, default
+  1.0. Stub entries: Hormozi=1.2, personal notes=0.7. Promote to DB in
+  Phase 2 (PLAN §8).
+- **`lib/search/rank.ts`:** pure ranking. `finalScore = similarity +
+  0.05·recency + 0.08·virality + 0.05·trust`. Recency uses the parent
+  row's date (`videos.posted_at` ?? `videos.created_at`, or
+  `knowledge_items.created_at`) so re-embedding doesn't reset recency.
+  Virality is `log10(view_count)/7` for videos only; trust is the
+  normalized source_label weight for knowledge only.
+- **`lib/search/query.ts`:** `searchCorpus(query, filters)` embeds via
+  `text-embedding-3-small`, calls the RPC with `k=30`, re-ranks in-app,
+  returns top 10. `loadFilterOptions()` reads distinct values from
+  `videos` + `knowledge_items` to populate the pill rows.
+- **`/search` page (`app/search/page.tsx`):** server component reading
+  `searchParams` (Next 16's async Promise shape). Native `<form
+  method="GET">` so URL state drives everything — pill toggles are
+  `<Link>` hrefs that mutate one key and preserve the rest. Result cards
+  emit deep-link URLs (videos: `/videos/[id]?t=N`, knowledge:
+  `/knowledge/[id]?chunk=N`). Citation format: `brand · product · @m:ss`
+  for videos, `source_label · p.N · section` for knowledge.
+- **Nav (`app/layout.tsx`):** header gains Upload / Knowledge / Search.
+- **Smoke test (executed against prod DB via Supabase MCP):**
+  self-similarity round-trip = 1.0000, neighbor ordering correct,
+  `p_brand='Medicube'` filter restricts to that brand's chunks only.
+- **UX gotcha to be aware of:** typing in the search input and then
+  clicking a filter pill (without first submitting the search) discards
+  the typed text — pills are `<Link>` hrefs that navigate immediately.
+  Once a query is in the URL (`?q=...`), pill toggles preserve it
+  correctly. Fix would need a small client component to read the input
+  value into the pill href on click. Left as a v0 quirk.
+
+**Open before flipping Slice 6 to shipped:**
+1. Cameron loads `/search` in a browser, confirms the UI renders and a
+   real query like `"lip plumper"` or `"blackhead pore"` returns the
+   expected results with correct citations.
+2. Toggle a pill (e.g. brand=Medicube), confirm URL gains the param and
+   the result set narrows; toggle off, confirm it clears.
+3. Click a video result, confirm it lands on `/videos/[id]?t=N` (page
+   landing at the top is expected — seek-on-mount is Slice 7).
+4. Deploy to Vercel and re-verify the same flow on prod.
 
 ## Slice 5.5 shipped — what landed
 

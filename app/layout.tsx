@@ -34,8 +34,10 @@ export default function RootLayout({
             <Link href="/" className="font-mono text-sm tracking-tight">
               skincare-scripter
             </Link>
-            <nav className="text-sm text-muted-foreground">
+            <nav className="text-sm text-muted-foreground flex items-center gap-4">
               <Link href="/" className="hover:text-foreground">Upload</Link>
+              <Link href="/knowledge" className="hover:text-foreground">Knowledge</Link>
+              <Link href="/search" className="hover:text-foreground">Search</Link>
             </nav>
           </div>
         </header>
