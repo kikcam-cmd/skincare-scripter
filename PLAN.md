@@ -1,6 +1,9 @@
 # skincare-scripter v0 — Implementation Plan
 
-**Context.** Cameron is building a personal TikTok scripting copilot for the male-skincare niche. v0 ships *only* the corpus-building half: a video-analysis pipeline (Groq Whisper + Claude vision breakdown) and a knowledge-ingestion pipeline (PDF/MD/TXT/pasted), both feeding a single pgvector corpus that's searchable across types. Script generation is Phase 2 and must not bleed in. The repo is currently empty except for `SPEC.md`, so every path below is a new file. Stack is locked: Next.js 16 App Router, Supabase (new project), Vercel Fluid, shadcn/ui, Groq Whisper turbo, Claude Sonnet 4.6 (`claude-sonnet-4-6`), OpenAI `text-embedding-3-small` (justified below).
+> **⚠️ Partially superseded by Slice 5.5 (2026-05-16 — commit `a0f48d6`).**
+> The original positioning ("male-skincare niche", required `male_creator_relevance` field) was replaced with a skincare-focused multi-creator-gender frame. The breakdown shape now uses an optional `gender_specific_notes` field and adds `ai_tags`; `videos` carries `creator_gender`, `brand`, `product_name`, `user_notes`, `ai_tags`. Read `SPEC.md` for current positioning and `STATUS.md` for the current state of the codebase. The architecture, pipeline shape, embedding choice, knowledge ingestion design, and slice plan below are still accurate — only the prompt content, breakdown schema, and `videos` table shape have shifted.
+
+**Context.** Cameron is building a TikTok scripting copilot for the skincare niche. v0 ships *only* the corpus-building half: a video-analysis pipeline (Groq Whisper + Claude vision breakdown) and a knowledge-ingestion pipeline (PDF/MD/TXT/pasted), both feeding a single pgvector corpus that's searchable across types. Script generation is Phase 2 and must not bleed in. The repo is currently empty except for `SPEC.md`, so every path below is a new file. Stack is locked: Next.js 16 App Router, Supabase (new project), Vercel Fluid, shadcn/ui, Groq Whisper turbo, Claude Sonnet 4.6 (`claude-sonnet-4-6`), OpenAI `text-embedding-3-small` (justified below).
 
 ---
 

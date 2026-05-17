@@ -102,12 +102,7 @@ updates:
 
 Open follow-ups (non-blocking):
 
-1. **Breakdown quality regression** — the breakdown produced for video
-   `5d44a1de` (Slice 3 code) was noticeably less detailed than
-   `611cdcaa` / `d21d7f8b`. Diff `raw_claude_response` across the three
-   breakdown rows, check model/max_tokens/prompt version, look for
-   truncation indicators. (`611cdcaa` is now `status='duplicate'` after
-   the Slice 4 smoke test, but its breakdown row still exists.)
+1. ~~**Breakdown quality regression for 5d44a1de**~~ — resolved by the Slice 5.5 backfill. Both surviving embedded videos (5d44a1de + d21d7f8b) were re-analyzed under the new prompt and shipped with rich, comparable breakdowns. `611cdcaa` still carries its original Slice 3 breakdown row (status='duplicate', not surfaced), but the comparison no longer matters because the prompt + schema have changed underneath it.
 2. **`corpus_chunks` partial-write within STEP 4 / knowledge embed** —
    if the embed step crashes after some rows land, the gate ("any row
    exists for {video_id|knowledge_item_id}") skips it on retry and the

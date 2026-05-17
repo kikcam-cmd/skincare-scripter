@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "skincare-scripter",
-  description: "TikTok scripting copilot — male-skincare niche",
+  description: "TikTok scripting copilot for the skincare niche",
 };
 
 export default function RootLayout({
