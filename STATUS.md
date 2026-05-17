@@ -6,49 +6,25 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 ## Where we are right now
 
-**Phase:** **Slice 3 shipped + smoke-tested; Slice 4 paused on key
-rotation.** Pipeline is fully idempotent (STEP gates + sha256 STEP 0
-dedup). Both Slice 3 smoke tests pass:
-- **Resume:** re-running an analyzed video skips every step (no
-  Groq/Claude calls, baseline counts unchanged).
-- **Dedup:** re-uploading an identical MP4 marks the new row
-  `status='duplicate'` with the canonical hash and
-  `error_message='duplicate of <id>'` before any external call.
+**Phase:** **Slice 4 shipped + smoke-tested.** Pipeline now embeds
+transcript chunks + breakdown facets via OpenAI
+`text-embedding-3-small` (1536d) into `corpus_chunks`, and the video
+detail page shows a "Similar videos" card backed by the
+`similar_videos(target_id, k)` SQL function (cosine on
+`breakdown_summary` chunks). Status flow is now
+`uploaded → transcribed → frames_extracted → analyzed → embedded`;
+resume on an already-embedded video is a no-op and does not downgrade.
 
-**🚨 SECURITY — DO BEFORE ANYTHING ELSE in the next session.** Two leaks
-occurred 2026-05-16:
-1. User pasted an OpenAI key directly into chat → rotated.
-2. Agent ran `vercel env pull .env.local --yes` to recover from an
-   empty-file mistake; the harness echoed the full file contents into
-   the transcript, exposing every Vercel env var.
+**Smoke test (2026-05-16):** ran `process-video` on the three prior
+`analyzed` rows. 5d44a1de + d21d7f8b embedded cleanly (7 + 6
+`corpus_chunks` rows respectively); `similar_videos(5d44a1de, 5)`
+returns d21d7f8b at 0.65 cosine similarity. **Side-effect:** 611cdcaa
+flipped to `status='duplicate'` of 5d44a1de — re-running the pipeline
+on rows that never had `content_hash` set retroactively triggers STEP
+0 dedup. Not a bug; the breakdowns row is still present and
+investigable.
 
-**Keys requiring rotation** (none verified rotated as of session end):
-
-| key | rotate at | priority |
-|---|---|---|
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase dashboard → Settings → API Keys → reset service_role | **CRITICAL** — bypasses RLS |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | same page, rotate anon | high (RLS-bound but scoped) |
-| `ANTHROPIC_API_KEY` | console.anthropic.com → settings → keys | billing exposure |
-| `GROQ_API_KEY` | console.groq.com → keys | billing exposure |
-| `OPENAI_API_KEY` (post-first-rotation one) | platform.openai.com → API keys | billing exposure |
-| `APP_PASSWORD` | pick a new random string, set in Vercel only | Basic Auth gate on prod URL |
-
-`VERCEL_OIDC_TOKEN` was also exposed but is short-lived (~12h) — already
-expired or will be by next session, no action.
-
-Process: rotate at each source, then update Vercel via the
-**dashboard** (https://vercel.com/kikuchicameron-7255s-projects/skincare-scripter/settings/environment-variables).
-**Do NOT run `vercel env pull` or any command that materializes secrets
-into a file or stdout while an agent is driving** — see
-[[feedback-never-pull-secrets-in-agent-session]] in user memory. To
-restore `.env.local` after rotation, use the Vercel dashboard's
-"Download" button (UI-only), or have the user paste values manually.
-
-Slice 4 plan locked in (see "Slice 4 plan — ready to resume" below) but
-execution blocked until key rotations are confirmed. After rotation,
-resume from the locked plan and ship Slice 4 in one pass.
-
-**Last updated:** 2026-05-16 (end-of-session save)
+**Last updated:** 2026-05-16 (Slice 4 ship)
 
 ## Read these in order
 
@@ -94,49 +70,73 @@ Numbered list straight from `PLAN.md` "Risks & open questions" section. My recom
 | 1 | Smallest E2E: upload one MP4, see one breakdown. Vercel access protection enabled before first deploy. | **shipped ✓** |
 | 2 | Transcripts, frames, auto-trigger from upload | **shipped ✓** (auto-trigger was already in Slice 1; persistence + study-tool UI added) |
 | 3 | Idempotent pipeline + status tracking + retry button | **shipped ✓** (step gates + STEP 0 sha256 dedup; both smoke tests verified) |
-| 4 | Embeddings + similar-videos panel | not started |
+| 4 | Embeddings + similar-videos panel | **shipped ✓** |
 | 5 | Knowledge ingestion (PDF/MD/TXT/pasted) | not started |
 | 6 | Unified search across both corpora | not started |
 | 7 | Polish (editable metadata, niche tags, clickable timestamps) | not started |
 
 ## Next concrete action
 
-1. **Rotate the six leaked keys** (see "🚨 SECURITY" section above).
-   Update each at its source, then write the new value into Vercel via
-   the dashboard. Do **not** use `vercel env pull` or any other CLI that
-   echoes secrets — see [[feedback-never-pull-secrets-in-agent-session]].
-2. **Restore `.env.local`** via the Vercel dashboard's "Download" button
-   (Project → Settings → Env Vars). Manual paste from the dashboard also
-   works. Avoid CLI-based bulk pull.
-3. **Tell the agent "rotated"** to resume Slice 4. The plan in the next
-   section is locked — no re-deciding needed, just execute.
+**Start Slice 5: knowledge ingestion (PDF/MD/TXT/pasted).** Per
+`PLAN.md` §2 and §9, this slice:
+- Adds `knowledge_items` table.
+- `ALTER TABLE corpus_chunks` to add `source_type` enum,
+  `knowledge_item_id` column + FK, and the exclusivity check
+  `((video_id is not null) <> (knowledge_item_id is not null))`. Also
+  add the partial unique index
+  `(knowledge_item_id, chunk_kind, chunk_index)` and replace the
+  existing `corpus_chunks_video_unique` to be partial on `where
+  video_id is not null` (currently it's unconditional, which is fine
+  because `video_id` is `not null` — but Slice 5 makes it nullable).
+- New `POST /api/knowledge` route + parser (`unpdf` for PDFs, native
+  for MD/TXT, treat pasted text as a single doc).
+- `knowledgeProcess()` pipeline: parse → chunk → embed → insert into
+  `corpus_chunks` with `source_type='knowledge'`.
+- UI: a `/knowledge` page mirroring the videos list + a knowledge
+  upload zone on the home page (or in a tab).
 
-Open follow-up (non-blocking, in TaskList as #4):
-**Breakdown quality regression** — the breakdown produced for video
-`5d44a1de` (current Slice 3 code) was noticeably less detailed than the
-ones on the two pre-Slice-2 videos `611cdcaa` / `d21d7f8b`. Diff
-`raw_claude_response` across the three breakdown rows, check
-model/max_tokens/prompt version, look for truncation indicators.
-Investigate after Slice 4 ships unless quality blocks demos.
+Open follow-ups (non-blocking):
 
-## Slice 4 plan — ready to resume
+1. **Breakdown quality regression** — the breakdown produced for video
+   `5d44a1de` (Slice 3 code) was noticeably less detailed than
+   `611cdcaa` / `d21d7f8b`. Diff `raw_claude_response` across the three
+   breakdown rows, check model/max_tokens/prompt version, look for
+   truncation indicators. (`611cdcaa` is now `status='duplicate'` after
+   the Slice 4 smoke test, but its breakdown row still exists.)
+2. **`corpus_chunks` partial-write within STEP 4** — if STEP 4 crashes
+   after some rows land, the gate ("any row exists for video_id")
+   skips it on retry and the video has incomplete embeddings.
+   Acknowledged in the Slice 4 ship; promote to a per-`chunk_kind`
+   gate or transactional RPC if this bites.
 
-Locked decisions (don't re-litigate):
+## Slice 4 shipped — what landed
 
-- **Embedding model:** OpenAI `text-embedding-3-small` (1536d). PLAN §6 defends this; re-embedding on provider switch is cheap at this scale.
-- **`corpus_chunks` is video-only for now.** PLAN §2 defines a unified `(video_id, knowledge_item_id)` schema, but `knowledge_items` doesn't exist until Slice 5. Adding the column + FK + check now would be deadweight. Slice 5's migration will `ALTER TABLE` to add `source_type` enum, `knowledge_item_id` column, FK, and adjust the exclusivity check. Migration 0004 ships the video-only shape (0003 was consumed by the dedup unique-index fix; see Git history).
-- **Embed step gating:** match the existing pattern — skip STEP 4 if any `corpus_chunks` row exists for `video_id`. Documented partial-write edge case is the same shape as Slice 3's transcript edge case; not fixing in Slice 4.
-- **What gets embedded per video:** every `transcript_chunks` row (one chunk per row, chunk_kind='transcript') plus one chunk per non-empty breakdown facet (chunk_kind ∈ `breakdown_summary`, `male_creator_relevance`, `buyer_psych_levers`, `pacing_notes`, `visual_style_notes`). PLAN §3 STEP 4 has the exact mapping.
-- **Insert semantics:** ON CONFLICT DO NOTHING on the partial unique index `(video_id, chunk_kind, chunk_index)` so a partial-batch crash retries cleanly.
-- **Similar-videos query:** SQL function `similar_videos(target_id uuid, k int default 5)` returning the k nearest *other* videos by cosine distance on the `breakdown_summary` chunk. Detail page calls the RPC, renders up to 5 cards (first-frame thumbnail + filename + niche_tag + similarity %). PLAN §6 confirms `breakdown_summary` as the unified semantic representation.
+- **Migration `0004_slice4.sql`:** `vector` extension; `corpus_chunks`
+  table (video-only, no `source_type` yet — Slice 5 ALTERs); hnsw
+  cosine index on `embedding`; partial unique
+  `(video_id, chunk_kind, chunk_index)`; `similar_videos(target_id,
+  k)` SQL function returning `(video_id, similarity, filename,
+  niche_tag, first_frame_path)`.
+- **Pipeline STEP 4:** `lib/pipeline/video.ts` embeds each
+  `transcript_chunks` row + one chunk per non-empty breakdown facet
+  (`breakdown_summary`, `male_creator_relevance`, `buyer_psych_levers`,
+  `pacing_notes`, `visual_style_notes`) via OpenAI
+  `text-embedding-3-small`. Insert is
+  `upsert(..., onConflict: 'video_id,chunk_kind,chunk_index',
+  ignoreDuplicates: true)`. Sets `status='embedded'` on success.
+- **Status flow fix:** STEP 3 now sets `status='analyzed'` inside its
+  own block; the final unconditional update now only clears
+  `error_message` (no status). Resume on an embedded video stays
+  embedded.
+- **UI:** new `app/videos/[id]/similar-videos.tsx` server component
+  rendering up to 5 thumbnail cards (signed URL TTL = 1h). Page only
+  fetches + renders when `video.status === 'embedded'`. Empty result
+  shows "No similar videos yet — embed at least one other video to
+  compare."
 
-Files to touch:
-- `db/migrations/0004_slice4.sql` — `create extension vector`; `corpus_chunks` table; hnsw index `using hnsw (embedding vector_cosine_ops)`; index on `(metadata->>'niche_tag')`; partial unique `(video_id, chunk_kind, chunk_index)`; `similar_videos` SQL function.
-- `package.json` — add `openai` dependency.
-- `lib/pipeline/video.ts` — STEP 4 block (embed + insert + status='embedded').
-- `app/videos/[id]/page.tsx` — fetch similar videos + render new card.
-- `app/videos/[id]/similar-videos.tsx` (new) — client-or-server card component.
-- `STATUS.md` — mark Slice 4 shipped, point to Slice 5.
+Embedding values are stored as `JSON.stringify(number[])` for
+pgvector (Supabase canonical pattern; raw JS array also works via
+PostgREST but the stringified form is unambiguous).
 
 ## Supabase project (this project, NOT DBL)
 
@@ -165,7 +165,7 @@ If a custom domain is added later, the proxy still works on it — no Vercel-sid
 - ~~**Pipeline is single-shot, not idempotent.**~~ **Slice 3 ✓** — DB-existence-gated, retry resumes without re-billing completed steps.
 - ~~**No transcripts/frames persistence.**~~ **Slice 2 ✓** — both persisted, retry cleans them up.
 - ~~**No dedup.**~~ **Slice 3 ✓** — STEP 0 hashes the MP4 server-side; duplicates of prior successful uploads are marked `status='duplicate'`.
-- **Partial-write within a step is the remaining sharp edge.** If STEP 1 inserts the `transcripts` row but the `transcript_chunks` insert fails, retry skips STEP 1 (transcripts row exists) and STEP 3 reads zero chunks. Rare in practice; if it happens, the user has to manually delete the half-written `transcripts` row from the Supabase dashboard. A proper fix would be per-step upserts or a transactional RPC.
+- **Partial-write within a step is the remaining sharp edge.** If STEP 1 inserts the `transcripts` row but the `transcript_chunks` insert fails, retry skips STEP 1 (transcripts row exists) and STEP 3 reads zero chunks. Rare in practice; if it happens, the user has to manually delete the half-written `transcripts` row from the Supabase dashboard. A proper fix would be per-step upserts or a transactional RPC. Same edge case shape applies to STEP 4 (`corpus_chunks`).
 - **`videos` bucket needs `image/jpeg` in `allowed_mime_types`.** Frames live at `videos/frames/<id>/NN.jpg`; without this the bucket rejects frame uploads with `mime type image/jpeg is not supported` and STEP 2 fails. Set by dashboard SQL on 2026-05-16. Not in any migration file — re-apply manually on any fresh Supabase project: `update storage.buckets set allowed_mime_types = array['video/mp4','video/quicktime','video/webm','image/jpeg'] where name='videos';`.
 - ~~**Dedup STEP 0 silently no-op'd.**~~ **Fixed 2026-05-16** — the original partial unique index on `content_hash` forbade the duplicate-row update, and the supabase-js call swallowed the error. Migration 0003 widens the predicate to `WHERE content_hash IS NOT NULL AND status <> 'duplicate'`; STEP 0 updates now throw on error so a future schema/constraint mismatch lands the row in `status='failed'` instead of stalling at `uploaded`.
 - **`max_tokens=4000`** for Claude breakdown (bumped from 2000 after first run truncated `male_creator_relevance`). If future runs still truncate, raise further.
@@ -181,7 +181,7 @@ SUPABASE_SERVICE_ROLE_KEY=         # set
 ANTHROPIC_API_KEY=                 # set
 GROQ_API_KEY=                      # set
 APP_PASSWORD=                      # Basic Auth gate (proxy.ts). Required — app returns 503 if missing.
-OPENAI_API_KEY=                    # Slice 4 (embeddings) — REQUIRED before resuming Slice 4. Not yet in Vercel.
+OPENAI_API_KEY=                    # set (Slice 4 embeddings)
 ```
 
 ## Local dev quick reference

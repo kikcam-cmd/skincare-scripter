@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RefreshOnPending } from "./refresh-on-pending";
 import { StudyTool } from "./study-tool";
+import { SimilarVideos } from "./similar-videos";
 
 const TERMINAL: ReadonlyArray<string> = ["analyzed", "embedded", "failed", "duplicate"];
 const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour — page re-renders refresh.
@@ -69,6 +70,54 @@ export default async function VideoDetailPage({
 
   const isPending = !TERMINAL.includes(video.status);
 
+  // Similar videos: only fetch once this video itself has been embedded —
+  // the RPC keys off the breakdown_summary chunk, which doesn't exist
+  // before STEP 4. Returns [] if no other videos are embedded yet.
+  type SimilarRow = {
+    video_id: string;
+    similarity: number;
+    filename: string;
+    niche_tag: string | null;
+    first_frame_path: string | null;
+  };
+  let similarItems: {
+    video_id: string;
+    similarity: number;
+    filename: string;
+    niche_tag: string | null;
+    thumbnail_url: string | null;
+  }[] = [];
+  if (video.status === "embedded") {
+    const { data: similar } = await admin.rpc("similar_videos", {
+      target_id: id,
+      k: 5,
+    });
+    const rows = (similar as SimilarRow[] | null) ?? [];
+    const thumbPaths = rows
+      .map((r) => r.first_frame_path)
+      .filter((p): p is string => !!p);
+    const { data: signed } =
+      thumbPaths.length > 0
+        ? await admin.storage
+            .from("videos")
+            .createSignedUrls(thumbPaths, SIGNED_URL_TTL_SECONDS)
+        : { data: [] as { signedUrl: string }[] };
+    const pathToUrl = new Map<string, string>();
+    thumbPaths.forEach((p, i) => {
+      const url = signed?.[i]?.signedUrl;
+      if (url) pathToUrl.set(p, url);
+    });
+    similarItems = rows.map((r) => ({
+      video_id: r.video_id,
+      similarity: r.similarity,
+      filename: r.filename,
+      niche_tag: r.niche_tag,
+      thumbnail_url: r.first_frame_path
+        ? pathToUrl.get(r.first_frame_path) ?? null
+        : null,
+    }));
+  }
+
   return (
     <div className="mx-auto max-w-3xl px-6 py-10 space-y-6">
       {isPending && <RefreshOnPending intervalMs={3000} />}
@@ -112,6 +161,7 @@ export default async function VideoDetailPage({
       {breakdown && (
         <>
           <BreakdownSummary breakdown={breakdown} />
+          {video.status === "embedded" && <SimilarVideos items={similarItems} />}
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-mono">raw breakdown JSON</CardTitle>

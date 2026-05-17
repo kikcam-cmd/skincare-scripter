@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import Groq from "groq-sdk";
+import OpenAI from "openai";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { callClaudeBreakdown, BREAKDOWN_MODEL } from "@/lib/prompts/breakdown";
 import {
@@ -20,6 +21,16 @@ type GroqVerboseTranscription = {
   language?: string;
   words?: GroqWord[];
 };
+
+type EmbedItem = {
+  chunk_kind: string;
+  chunk_index: number;
+  text: string;
+  t_start: number | null;
+  t_end: number | null;
+};
+
+const EMBED_MODEL = "text-embedding-3-small";
 
 // Statuses that count as "real work has happened" — used to decide whether
 // another video with the same content_hash should be treated as a duplicate.
@@ -263,17 +274,140 @@ export async function processVideo({ videoId }: { videoId: string }): Promise<vo
         model: BREAKDOWN_MODEL,
       });
       if (bErr) throw new Error(`breakdown insert failed: ${bErr.message}`);
+
+      await supabase
+        .from("videos")
+        .update({ status: "analyzed" })
+        .eq("id", videoId);
     }
 
-    // Final: mark analyzed + clear any stale error_message. Safe to call even
-    // when all steps were skipped — idempotent.
+    // STEP 4: embeddings — gate by any corpus_chunks row existing for this
+    // video. Partial-batch crash within STEP 4 is the same edge case shape
+    // as Slice 3's transcript edge case; not handled here.
+    const { count: chunkRowCount } = await supabase
+      .from("corpus_chunks")
+      .select("id", { count: "exact", head: true })
+      .eq("video_id", videoId);
+    if (!chunkRowCount) {
+      const [{ data: tChunks }, { data: bd, error: bdErr }] = await Promise.all([
+        supabase
+          .from("transcript_chunks")
+          .select("chunk_index, text, t_start, t_end")
+          .eq("video_id", videoId)
+          .order("chunk_index", { ascending: true }),
+        supabase
+          .from("breakdowns")
+          .select(
+            "hook, problem, twist, solution, cta, tonality, male_creator_relevance, pacing_notes, buyer_psychology_levers, visual_style_notes",
+          )
+          .eq("video_id", videoId)
+          .single(),
+      ]);
+      if (bdErr || !bd)
+        throw new Error(`STEP 4: breakdown read failed: ${bdErr?.message}`);
+
+      const items: EmbedItem[] = [];
+      for (const c of tChunks ?? []) {
+        const text = (c.text as string | null)?.trim();
+        if (!text) continue;
+        items.push({
+          chunk_kind: "transcript",
+          chunk_index: c.chunk_index as number,
+          text,
+          t_start: Number(c.t_start),
+          t_end: Number(c.t_end),
+        });
+      }
+
+      const facets: Array<{ kind: string; text: string | null }> = [
+        { kind: "breakdown_summary", text: renderBreakdownSummary(bd) },
+        { kind: "male_creator_relevance", text: (bd.male_creator_relevance as string | null) ?? null },
+        { kind: "buyer_psych_levers", text: joinStringList(bd.buyer_psychology_levers) },
+        { kind: "pacing_notes", text: (bd.pacing_notes as string | null) ?? null },
+        { kind: "visual_style_notes", text: (bd.visual_style_notes as string | null) ?? null },
+      ];
+      for (const f of facets) {
+        const text = f.text?.trim();
+        if (!text) continue;
+        items.push({
+          chunk_kind: f.kind,
+          chunk_index: 0,
+          text,
+          t_start: null,
+          t_end: null,
+        });
+      }
+
+      if (items.length === 0)
+        throw new Error("STEP 4: no embeddable items (transcript + breakdown both empty)");
+
+      const openai = new OpenAI();
+      const embedRes = await openai.embeddings.create({
+        model: EMBED_MODEL,
+        input: items.map((i) => i.text),
+      });
+
+      const metadata = {
+        niche_tag: video.niche_tag,
+        view_count: video.view_count,
+        creator_handle: video.creator_handle,
+      };
+
+      const { error: ccErr } = await supabase.from("corpus_chunks").upsert(
+        items.map((it, idx) => ({
+          video_id: videoId,
+          chunk_kind: it.chunk_kind,
+          chunk_index: it.chunk_index,
+          text: it.text,
+          embedding: JSON.stringify(embedRes.data[idx].embedding),
+          t_start: it.t_start,
+          t_end: it.t_end,
+          metadata,
+        })),
+        { onConflict: "video_id,chunk_kind,chunk_index", ignoreDuplicates: true },
+      );
+      if (ccErr) throw new Error(`corpus_chunks insert failed: ${ccErr.message}`);
+
+      await supabase
+        .from("videos")
+        .update({ status: "embedded" })
+        .eq("id", videoId);
+    }
+
+    // Clear any stale error_message from a prior failed run. Status is set by
+    // whichever STEP last did work; resuming an already-embedded video is a
+    // no-op so we don't downgrade the status.
     await supabase
       .from("videos")
-      .update({ status: "analyzed", error_message: null })
+      .update({ error_message: null })
       .eq("id", videoId);
   } finally {
     await fs.rm(tmp, { recursive: true, force: true });
   }
+}
+
+// Concise text representation of a breakdown — the unified semantic
+// content of the video for similarity search. Null spans are skipped.
+function renderBreakdownSummary(b: Record<string, unknown>): string | null {
+  const spans = ["hook", "problem", "twist", "solution", "cta"] as const;
+  const parts: string[] = [];
+  for (const key of spans) {
+    const span = b[key] as { text?: string } | null | undefined;
+    const text = span?.text?.trim();
+    if (text) parts.push(`${key}: ${text}`);
+  }
+  const tonality = b.tonality as string | null | undefined;
+  if (tonality && tonality.trim()) parts.push(`tonality: ${tonality.trim()}`);
+  return parts.length > 0 ? parts.join("\n") : null;
+}
+
+function joinStringList(arr: unknown): string | null {
+  if (!Array.isArray(arr)) return null;
+  const items = arr
+    .filter((x): x is string => typeof x === "string")
+    .map((x) => x.trim())
+    .filter((x) => x.length > 0);
+  return items.length > 0 ? items.join("\n") : null;
 }
 
 // Pack Groq's verbose-json word stream into ~maxChars-sized lines with
