@@ -14,7 +14,12 @@ export default async function UploadPage() {
   return (
     <div className="mx-auto max-w-3xl px-6 py-10 space-y-8">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Upload a TikTok</h1>
+        <div className="flex items-baseline justify-between gap-4">
+          <h1 className="text-2xl font-semibold tracking-tight">Upload a TikTok</h1>
+          <Link href="/knowledge" className="text-sm text-muted-foreground hover:underline">
+            Knowledge →
+          </Link>
+        </div>
         <p className="text-sm text-muted-foreground">
           MP4 / MOV / WebM. The pipeline transcribes via Groq, extracts frames,
           and asks Claude for a structured breakdown.

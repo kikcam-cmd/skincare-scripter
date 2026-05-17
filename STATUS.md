@@ -6,25 +6,32 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 ## Where we are right now
 
-**Phase:** **Slice 4 shipped + smoke-tested.** Pipeline now embeds
-transcript chunks + breakdown facets via OpenAI
-`text-embedding-3-small` (1536d) into `corpus_chunks`, and the video
-detail page shows a "Similar videos" card backed by the
-`similar_videos(target_id, k)` SQL function (cosine on
-`breakdown_summary` chunks). Status flow is now
-`uploaded → transcribed → frames_extracted → analyzed → embedded`;
-resume on an already-embedded video is a no-op and does not downgrade.
+**Phase:** **Slice 5 shipped + smoke-tested.** Knowledge ingestion is
+live: PDF / MD / TXT / pasted text all flow through
+`processKnowledge()`, parse to blocks (page boundaries for PDF via
+`unpdf`, heading-anchored sections for MD via `marked.lexer`, paragraph
+splits for TXT / pasted), chunk at ~2000 chars (6000 max), embed via
+`text-embedding-3-small`, and upsert into the unified `corpus_chunks`
+table with `source_type='knowledge'`. UI lives at `/knowledge` (tabs:
+upload file / paste text + title + source_label) and
+`/knowledge/[id]` (parsed chunks with page/section citations).
 
-**Smoke test (2026-05-16):** ran `process-video` on the three prior
-`analyzed` rows. 5d44a1de + d21d7f8b embedded cleanly (7 + 6
-`corpus_chunks` rows respectively); `similar_videos(5d44a1de, 5)`
-returns d21d7f8b at 0.65 cosine similarity. **Side-effect:** 611cdcaa
-flipped to `status='duplicate'` of 5d44a1de — re-running the pipeline
-on rows that never had `content_hash` set retroactively triggers STEP
-0 dedup. Not a bug; the breakdowns row is still present and
-investigable.
+**Smoke test (2026-05-16):** pasted a 1.2KB skincare positioning
+snippet (`ee328496`); pipeline ran in 1.8s, produced one
+`pasted_block` chunk, status reached `embedded`. Cross-source
+similarity check: the knowledge chunk's top neighbour is the
+`male_creator_relevance` chunk from video `5d44a1de` at 0.71 cosine
+— exactly the field dedicated to that topic. Unified retrieval works.
 
-**Last updated:** 2026-05-16 (Slice 4 ship)
+**Fix migration 0006:** Slice 5's migration made the `corpus_chunks`
+unique indexes partial (`where ... is not null`), which broke
+supabase-js upserts with `ON CONFLICT` — Postgres rejects the conflict
+target when only a partial unique index matches. Reverted both indexes
+to non-partial. The `corpus_chunks_one_source` CHECK + Postgres' NULLs-
+are-distinct semantics keep the invariants correct without the
+predicate.
+
+**Last updated:** 2026-05-16 (Slice 5 ship)
 
 ## Read these in order
 
@@ -71,29 +78,25 @@ Numbered list straight from `PLAN.md` "Risks & open questions" section. My recom
 | 2 | Transcripts, frames, auto-trigger from upload | **shipped ✓** (auto-trigger was already in Slice 1; persistence + study-tool UI added) |
 | 3 | Idempotent pipeline + status tracking + retry button | **shipped ✓** (step gates + STEP 0 sha256 dedup; both smoke tests verified) |
 | 4 | Embeddings + similar-videos panel | **shipped ✓** |
-| 5 | Knowledge ingestion (PDF/MD/TXT/pasted) | not started |
+| 5 | Knowledge ingestion (PDF/MD/TXT/pasted) | **shipped ✓** |
 | 6 | Unified search across both corpora | not started |
 | 7 | Polish (editable metadata, niche tags, clickable timestamps) | not started |
 
 ## Next concrete action
 
-**Start Slice 5: knowledge ingestion (PDF/MD/TXT/pasted).** Per
-`PLAN.md` §2 and §9, this slice:
-- Adds `knowledge_items` table.
-- `ALTER TABLE corpus_chunks` to add `source_type` enum,
-  `knowledge_item_id` column + FK, and the exclusivity check
-  `((video_id is not null) <> (knowledge_item_id is not null))`. Also
-  add the partial unique index
-  `(knowledge_item_id, chunk_kind, chunk_index)` and replace the
-  existing `corpus_chunks_video_unique` to be partial on `where
-  video_id is not null` (currently it's unconditional, which is fine
-  because `video_id` is `not null` — but Slice 5 makes it nullable).
-- New `POST /api/knowledge` route + parser (`unpdf` for PDFs, native
-  for MD/TXT, treat pasted text as a single doc).
-- `knowledgeProcess()` pipeline: parse → chunk → embed → insert into
-  `corpus_chunks` with `source_type='knowledge'`.
-- UI: a `/knowledge` page mirroring the videos list + a knowledge
-  upload zone on the home page (or in a tab).
+**Start Slice 6: unified search.** Per `PLAN.md` §8, this slice:
+- New `/search` page with a single semantic-search input + filter
+  pills (source_type all/video/knowledge, niche_tag, source_label).
+- `lib/search/query.ts`: embed the query, run
+  `select ... from corpus_chunks order by embedding <=> $1 limit 30`
+  filtered by pills, then re-rank in-app with the weighted score
+  from PLAN §8 (cosine + recency + virality + source_trust).
+- `lib/search/trust.ts`: hardcoded source-label trust weights.
+- Result cards: snippet + source-type badge + citation
+  (`source_label · p.N · section` for knowledge, `filename @ t_start`
+  for videos) + similarity %.
+- Video result → `/videos/[id]?t=<t_start>` jumps player to moment.
+- Knowledge result → `/knowledge/[id]?chunk=<id>` highlights chunk.
 
 Open follow-ups (non-blocking):
 
@@ -103,11 +106,61 @@ Open follow-ups (non-blocking):
    breakdown rows, check model/max_tokens/prompt version, look for
    truncation indicators. (`611cdcaa` is now `status='duplicate'` after
    the Slice 4 smoke test, but its breakdown row still exists.)
-2. **`corpus_chunks` partial-write within STEP 4** — if STEP 4 crashes
-   after some rows land, the gate ("any row exists for video_id")
-   skips it on retry and the video has incomplete embeddings.
-   Acknowledged in the Slice 4 ship; promote to a per-`chunk_kind`
-   gate or transactional RPC if this bites.
+2. **`corpus_chunks` partial-write within STEP 4 / knowledge embed** —
+   if the embed step crashes after some rows land, the gate ("any row
+   exists for {video_id|knowledge_item_id}") skips it on retry and the
+   item has incomplete embeddings. Acknowledged in Slice 4 + 5;
+   promote to a per-`chunk_kind` gate or transactional RPC if this
+   bites.
+3. **Knowledge chunker uses char proxy (~2000 chars / ~500 tokens),
+   not real tokens.** Cap at 6000 chars (~1500 tokens worst case)
+   keeps embedding inputs under the 8192 limit. If dense
+   technical PDFs trip the cap or chunk density drifts,
+   install `js-tiktoken` and switch to true token counts.
+4. **`pipeline_status` enum is shared between videos and knowledge.**
+   Knowledge items pass through `transcribed → embedded` even though
+   they were never transcribed — the value just means "parsed." Adding
+   a dedicated `parsed` enum value is heavy for a label-only change;
+   live with the abuse for now.
+
+## Slice 5 shipped — what landed
+
+- **Migration `0005_slice5.sql`:** `knowledge_items` table (kind enum
+  via CHECK: `pdf` | `md` | `txt` | `pasted`; row-level CHECK enforces
+  `pasted` ⇔ `pasted_text NOT NULL ∧ storage_path NULL`, file kinds
+  the inverse). Created `source_type` enum (`video` | `knowledge`),
+  added `knowledge_item_id` FK + `page_number` + `section_label` +
+  `source_type` columns to `corpus_chunks`, backfilled existing video
+  rows, added `corpus_chunks_one_source` exclusivity CHECK. New
+  `knowledge` storage bucket (private, 50MB per-file cap,
+  `application/pdf` + `text/markdown` + `text/plain` MIME allowlist).
+- **Migration `0006_corpus_chunks_unique_full.sql`:** fix for an
+  ON CONFLICT bug 0005 introduced (partial unique indexes can't be
+  inferred as conflict arbiters by supabase-js). Both
+  `corpus_chunks_*_unique` indexes are non-partial; CHECK + NULLs-
+  distinct semantics keep the invariant correct.
+- **`lib/pipeline/knowledge.ts`:** `processKnowledge({knowledgeItemId})`.
+  Parsers: `unpdf.extractText({mergePages: false})` for PDFs
+  (page boundaries → `page_number`), `marked.lexer` walked with a
+  "last heading seen" cursor for MD (heading text → `section_label`),
+  blank-line paragraph splits for TXT and pasted. Char-based packer
+  greedily fills ~2000 chars per chunk (6000-char cap; sentence-aware
+  split on oversize), preserving first page + first section in each
+  chunk. Single OpenAI batch embed → upsert with ON CONFLICT
+  DO NOTHING. Status flow: `uploaded → transcribed → embedded`.
+- **API routes:** `POST /api/uploads/sign-knowledge` (skips MIME
+  validation — client sends `kind`, bucket allowlist is the backstop),
+  `POST /api/knowledge` (`maxDuration=300`, mirror of video route's
+  try/catch → failed-status handler), `POST /api/knowledge/[id]/retry`
+  (same pattern as video retry).
+- **UI:** `/knowledge` page with tab toggle (upload file / paste text)
+  + optional title + source_label inputs + recent items list.
+  `/knowledge/[id]` shows parsed chunks with `p.N · section` citation
+  + retry button + auto-refresh while status is non-terminal. Home
+  page now has a `Knowledge →` link.
+- **Scripts:** `npm run process-knowledge <id>` for headless pipeline
+  runs (mirror of `process-video`).
+- **Deps added:** `unpdf`, `marked`.
 
 ## Slice 4 shipped — what landed
 
