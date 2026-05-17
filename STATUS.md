@@ -8,9 +8,9 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 **Phase:** **v0 corpus-building half is feature-complete on prod;
 Phase 2 planning doc drafted, awaiting decisions on three open questions
-before code starts.** Latest commit `445af80` (clean v0 handoff),
-deploy `dpl_DouFEUi6ezdoaBsHvdZNac317KUJ` READY, working tree clean.
-Slices 1–7 shipped: idempotent pipeline + sha256 dedup;
+before code starts.** Latest commit `b08c448` (Phase 2 kickoff + audit
+fixes), deploy `dpl_9e4nEtRrTDFJSEQPSy1E3ZUfvmCd` READY, working tree
+clean. Slices 1–7 shipped: idempotent pipeline + sha256 dedup;
 transcripts/frames persistence + study-tool UI; Claude vision breakdown;
 embeddings + similar-videos panel; knowledge ingestion (PDF/MD/TXT/pasted);
 metadata pivot (brand/product/creator_gender/user_notes/ai_tags); unified
@@ -24,7 +24,13 @@ timestamps; DB-backed source-trust admin (`/trust`).
 (multi-tenancy model, auth provider, script input/output contract) block
 the slice plan. See "Next concrete action" below.
 
-**Last updated:** 2026-05-17 (PLAN_PHASE2.md drafted)
+**Pre-Phase-2 code audit (2026-05-17):** ran a comprehensive health check
+across security / pipeline / code quality. 1 fix shipped immediately
+(timing-safe Basic Auth compare in `proxy.ts`); 8 findings deferred into
+Phase 2 Slice 1's auth retrofit — see "Pre-Phase-2 audit findings" section
+below for the full list with file:line refs.
+
+**Last updated:** 2026-05-17 (audit done, audit findings captured, commit b08c448 deployed)
 
 ## Read these in order
 
@@ -135,6 +141,72 @@ they bite):
    don't read them**~~ — resolved in Slice 7 partial: StudyTool now
    seeks on mount, knowledge page scrolls + highlights the matching
    chunk.
+
+## Pre-Phase-2 audit findings (2026-05-17)
+
+Comprehensive health audit ran after v0 close-out. One fix shipped in
+`b08c448`; the rest fold into Phase 2 Slice 1's auth retrofit (see
+`PLAN_PHASE2.md` §8 Slice 1). Hallucinated findings (proxy.ts "not wired",
+metadata denorm inconsistency) were verified false against the code and
+dropped — not listed here.
+
+**Done:**
+1. ~~**Basic Auth timing-side-channel in `proxy.ts:18`**~~ — fixed in
+   `b08c448`. `password === expected` replaced with
+   `crypto.timingSafeEqual(Buffer.from(password), Buffer.from(expected))`
+   guarded by length check. Soft threat model (HTTPS, single shared
+   password, network jitter dominates) but the fix was one line.
+
+**Fold into Slice 1 (auth retrofit):**
+
+2. **Raw Supabase errors leak to client.** Every API route returns
+   `error.message` directly — e.g. `app/api/videos/[id]/route.ts:61`,
+   `app/api/videos/route.ts:61`, `app/api/knowledge/route.ts`. Schema
+   details leak. Switch to `console.error()` + generic 500.
+3. **Full stack traces written to `videos.error_message`** —
+   `app/api/videos/route.ts:71` (`${err.message}\n${err.stack}`).
+   Renders on the video detail page. Truncate to first line or first
+   200 chars.
+4. **`posted_at` validation gap** — `app/api/videos/[id]/route.ts:49`:
+   `nullIfEmpty(body.posted_at)` just trims and passes through. Add
+   `^\d{4}-\d{2}-\d{2}$` regex + `Date.parse` round-trip.
+5. **Two avoidable `createAdminClient()` calls in
+   `app/videos/[id]/page.tsx`** — `allMeta` distinct-values query
+   (line 86) and `similar_videos` RPC (line 143) use service_role
+   where the server client (anon) would work. Cosmetic today (RLS is
+   off), but silently bypasses Phase 2 RLS once added. Signed-URL
+   generation on line 59 correctly stays on admin.
+6. **No rate limiting on POST routes** — `/api/uploads/sign*`,
+   `/api/videos`, `/api/knowledge`. Mitigated today by proxy.ts (every
+   caller is already authenticated). Becomes a real issue with
+   multi-user — one affiliate can DoS Vercel function budget for
+   everyone. Add per-user limits once auth is in place.
+
+**Pattern risks (do as part of Phase 2 Slice 0 / Slice 1):**
+
+7. **Hand-rolled type casts in data fetches** — `as string`, `as number`,
+   `as Record<string, unknown>` scattered across
+   `app/videos/[id]/page.tsx`, `app/trust/page.tsx`,
+   `lib/search/query.ts`. v0 absorbs it; Phase 2 will add
+   `script_drafts` queries, paginated lists, citation rendering, and
+   the casting surface grows fast. Run `supabase gen types typescript`
+   and import the generated types. ~30 min, retires the pattern.
+8. **No `app/error.tsx` global boundary.** Unhandled RSC throws surface
+   as Next's generic error page. Add a styled `error.tsx` + per-route
+   `error.tsx` for `/scripts/*` when that lands.
+9. **`searchParams` parsing repeated** across `/search`, `/videos/[id]`,
+   `/knowledge/[id]` (each hand-parses `parseInt(sp.x, 10)`). The
+   script-gen route will do the same. Extract a `parseSearchParams`
+   helper in `lib/` before the fourth instance lands.
+
+**Verified clean** (so the next session doesn't re-audit these):
+`proxy.ts` IS correctly wired (Next 16 renames middleware→proxy);
+`corpus_chunks.metadata` denormalization IS consistent (pipeline writes
+3 fields, PATCH propagates same 3, RPC LEFT JOINs videos for the rest);
+idempotency gates, migration hygiene, FK cascades, unique-index strategy,
+`search_corpus` RPC, citation-schema readiness for Phase 2 — all clean;
+server/client component boundaries clean; no path-traversal / CORS /
+secret-leakage risks.
 
 ## Slice 6 shipped — what landed
 
