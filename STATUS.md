@@ -6,18 +6,20 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 ## Where we are right now
 
-**Phase:** **Slice 7 final round — code complete, awaiting browser
-verification.** Clickable timestamps in BreakdownSummary spans (each
-of hook/problem/twist/solution/cta is now a SeekButton that fires a
+**Phase:** **Slice 7 fully shipped — v0 corpus-building half is
+feature-complete.** Browser-verified on prod (deploy
+`dpl_Fix4cquWThjUkzKaLqtKEH7etvD2` / commit `0b2ca3b`). Final round
+added clickable timestamps in BreakdownSummary spans (each of
+hook/problem/twist/solution/cta is now a SeekButton that fires a
 CustomEvent the StudyTool listens for — clean separation, no need to
-lift the breakdown card into a client component). Source-trust
-constants promoted from `lib/search/trust.ts` to a real `source_trust`
-DB table (migration 0009, seeded with the existing values); new
-`/trust` admin page lists every label in the table OR used by a
-knowledge item with per-row editable weight + notes. PATCH /api/trust
-upserts; rank.ts now takes the trust map as a parameter (stays pure);
-query.ts loads the map in parallel with the OpenAI embedding so search
-adds zero round-trip overhead.
+lift the breakdown card into a client component) and promoted
+source-trust constants from `lib/search/trust.ts` to a real
+`source_trust` DB table (migration 0009, seeded with the existing
+values). New `/trust` admin page lists every label in the table OR
+used by a knowledge item with per-row editable weight + notes.
+PATCH /api/trust upserts; rank.ts now takes the trust map as a
+parameter (stays pure); query.ts loads the map in parallel with the
+OpenAI embedding so search adds zero round-trip overhead.
 
 Semantic search across
 both corpora (videos + knowledge) via a single `search_corpus(query_embedding, ...filters)` RPC
@@ -88,29 +90,20 @@ Numbered list straight from `PLAN.md` "Risks & open questions" section. My recom
 | 5 | Knowledge ingestion (PDF/MD/TXT/pasted) | **shipped ✓** |
 | 5.5 | Metadata pivot: brand/product/gender/notes/ai_tags + neutral breakdown | **shipped ✓** |
 | 6 | Unified search across both corpora (now uses creator_gender/brand/product/ai_tags filters) | **shipped ✓** |
-| 7 | Polish (editable metadata, niche tags, clickable timestamps) | **complete · awaiting browser verify** (final round: clickable timestamps + DB-backed trust UI on top of the earlier deep-links + editable-metadata ship) |
+| 7 | Polish (editable metadata, niche tags, clickable timestamps) | **shipped ✓** (deep links + editable metadata + clickable timestamps + DB-backed trust UI all landed) |
 
 ## Next concrete action
 
-**Verify Slice 7 final round in a browser, then flip to shipped, then
-move to Phase 2.**
+**v0 is done — move to Phase 2: script generator.** This is the
+RAG-driven half the entire corpus was built to feed. PLAN §1 has
+the architecture (RAG retrieval + Claude); SPEC.md frames the
+multi-tenant Phase 2 audience (affiliate creators, male + female,
+with `target_creator_gender` becoming a request-time param on the
+script form). Auth + a real users table land at this point per
+SPEC's locked decisions.
 
-Browser smoke for the final round:
-1. On `/videos/[id]` of any embedded video, the Breakdown card's
-   hook/problem/twist/solution/cta lines should now be buttons —
-   click any one, the video player above seeks + plays from that
-   moment.
-2. Visit `/trust`. Should list `Hormozi - $100M Offers` (1.2) and
-   `personal notes` (0.7), plus any source_label used by an existing
-   knowledge item that isn't in the table (shown at default 1.0).
-   Bump a weight, click Save, refresh — the new value should stick.
-3. Re-run a `/search` query that returns a knowledge result with the
-   bumped label — the ranking change should reflect the new weight.
-
-Then the natural next move is **Phase 2: script generator** — the
-RAG-driven half this entire corpus was built to feed. PLAN §1
-describes the architecture (RAG retrieval + Claude); SPEC.md frames
-the multi-tenant Phase 2 affiliate-creator audience.
+Phase 2 will need its own SPEC/PLAN re-read + slice breakdown before
+coding — the v0 PLAN intentionally scoped script generation out.
 
 Open follow-ups (non-blocking):
 
