@@ -1,14 +1,16 @@
 # skincare-scripter Phase 2 — Script Generator Plan
 
-> **Status: deferred pending corpus growth (2026-05-17).** Cameron's pivot
-> during the §2 working session: *"perfect the brain"* before building the
-> script-gen surface. The three §2 questions (auth, multi-tenancy, script
-> contract) are all surface-level — they don't change retrieval quality.
-> With 3 embedded videos and NULL analytics data, none of the architectural
-> choices in §3-§8 can be empirically validated. Slice 8 (brain quality)
-> shipped instead — see STATUS.md for what landed. This doc re-engages once
-> Cameron has ~20+ videos in and `/search` returns the right grounding
-> material for representative requests.
+> **Status: deferred pending corpus growth (2026-05-17, refreshed 2026-05-18).**
+> Cameron's pivot during the §2 working session: *"perfect the brain"*
+> before building the script-gen surface. The three §2 questions (auth,
+> multi-tenancy, script contract) are all surface-level — they don't change
+> retrieval quality. 3 embedded videos (with analytics + structured metadata
+> now populated as of 2026-05-18) is still well below the corpus size needed
+> to empirically validate the architectural choices in §3-§8. Slice 8 (brain
+> quality) shipped instead — see STATUS.md for what landed across commits
+> 9984a11 → 8970ec79 → 7913d8d. This doc re-engages once Cameron has
+> ~20+ videos in and `/search` returns the right grounding material for
+> representative requests.
 >
 > The original framing — three load-bearing decisions (§2) that gate §6-§8 —
 > still stands. Nothing in §2 has been invalidated; we just need to know

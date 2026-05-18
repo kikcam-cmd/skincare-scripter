@@ -41,11 +41,16 @@ Both flow into the same searchable corpus (pgvector), with separate detail views
   "buyer_psychology_levers": ["string"],
   "visual_style_notes": "string",
   "gender_specific_notes": "string | null",
-  "ai_tags": ["string"]
+  "ai_tags": ["string"],
+  "product_category": ["string"],
+  "active_ingredients": ["string"],
+  "function_claims": ["string"]
 }
 ```
 
 `gender_specific_notes` is nullable — Claude only fills it when a beat materially depends on the creator's gender to land, and names the adaptation a creator of the opposite gender would need. `ai_tags` are stored on `videos.ai_tags` (filterable metadata), not embedded as a chunk.
+
+The last three fields (`product_category`, `active_ingredients`, `function_claims`) shipped in Slice 8 brain-quality (2026-05-17/18) as structured retrieval keys for cross-brand matching — they answer "what other lip plumpers, niacinamide serums, anti-aging products are in the corpus?" rather than relying on stringy `ai_tags` overlap. All three land on `videos.*` (not `breakdowns.*`) so they're filterable inline-editable metadata. `product_category` carries 1–4 values to preserve both the functional category and the TikTok shop classification. `function_claims` captures *creator-spoken* positioning, not strict brand-compliant language. Slice 8 also adds `videos.gmv_usd` + `videos.items_sold` + `videos.posted_at` (the last already existed) as conversion signals — view count alone over-rewards eyeballs vs. purchases. Ranker formula tuning against these signals is deferred until corpus ≥ ~20 videos with real analytics.
 
 ### Knowledge processing pipeline
 

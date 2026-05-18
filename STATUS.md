@@ -6,44 +6,55 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 ## Where we are right now
 
-**Phase:** **v0 (Slices 1–7) shipped on prod. Slice 8 brain-quality
-landed in code + migration 0010 applied to DB — code needs commit +
-deploy + backfill of 3 existing videos. Phase 2 script-gen surface
-deferred until corpus grows (Cameron uploading more material first).**
+**Phase:** **v0 (Slices 1–7) + Slice 8 brain-quality + Slice 8 follow-ups
+all shipped on prod. 3 existing videos have analytics + structured
+metadata populated. Backfill of those 3 videos still pending (Cameron's
+discretion — he plans to upload more material before re-extracting).
+Phase 2 script-gen surface deferred until corpus grows large enough to
+empirically validate retrieval.**
 
 Slice 8 reframe (2026-05-17): Cameron's pivot during PLAN_PHASE2 §2
 discussion — *"perfect the brain"* before building the script-gen
 surface. PLAN_PHASE2 §2's three open questions are surface-level (auth,
 drafts, form contract) and don't move retrieval quality. With only 3
-embedded videos and `view_count`/`posted_at` NULL across all of them
-(virality + recency components scored 0 today), the binding constraint
-is corpus size and structured retrieval keys — not the script-gen UX.
+embedded videos, the binding constraint is corpus size + structured
+retrieval keys, not script-gen UX.
 
-**What landed in Slice 8 (code, not yet deployed):**
+**What landed across Slice 8 (commits 9984a11 → 8970ec79 → 7913d8d):**
 
-- Migration `0010_brain_quality.sql` applied to prod DB (yajpzqbrclsxhljialqs).
-- New `videos` columns: `product_category text[]` (widened from text in
-  0011 — Cameron's feedback: products legitimately fit multiple categories,
-  TikTok shop's classification often differs from functional category),
-  `active_ingredients text[]`, `function_claims text[]`, `gmv_usd numeric`,
-  `items_sold integer`.
+- Migration `0010_brain_quality.sql` applied to prod DB
+  (yajpzqbrclsxhljialqs).
+- Migration `0011_product_category_array.sql` applied — widened
+  `videos.product_category text → text[]` (Cameron's feedback after
+  stamping analytics: products legitimately fit multiple categories,
+  TikTok shop's classification often differs from functional category,
+  e.g. a "lip plumper" filed under "lipstick-and-lip-gloss"). Also
+  reframed `function_claims` in the prompt to capture *creator-spoken*
+  positioning, not just brand-compliant outcomes.
+- New `videos` columns: `product_category text[]`,
+  `active_ingredients text[]`, `function_claims text[]`,
+  `gmv_usd numeric`, `items_sold integer`.
 - Breakdown prompt extracts the three structured product axes with
-  sharp INCI vs end-user-outcome guidance (Cialdini-trained rule: when
-  unsure, prefer function_claims, leave ingredients empty).
+  sharp INCI vs end-user-outcome guidance ("when unsure, prefer
+  function_claims, leave ingredients empty"). `product_category` is
+  1–4 values capturing functional category + TikTok shop classification
+  + alternative use-case framings.
 - Pipeline persists the new fields in STEP 3; STEP 4 gains `tonality`
   and `authenticity_signals` as new `chunk_kind` retrieval surfaces
-  (tonality moved out of breakdown_summary; authenticity_signals was
-  orphan-extracted in v0 — now retrievable).
+  (tonality moved out of `breakdown_summary` into its own chunk;
+  `authenticity_signals` was orphan-extracted in v0 — now retrievable).
 - `search_corpus` RPC gains 4 new filter params (`p_product_category`,
   `p_active_ingredient`, `p_function_claim`, `p_tonality`) and projects
-  6 new columns (video_product_category, video_active_ingredients,
-  video_function_claims, video_gmv_usd, video_items_sold, video_tonality).
-- `/search` page gets 4 new filter pill rows; upload form + inline
-  metadata editor accept the new fields.
+  6 new columns. 0011's redefinition switched the category filter from
+  equality to `= any(arr)` (same pattern as `p_ai_tag`).
+- `/search` page gets 4 new filter pill rows; upload form gains analytics
+  inputs (views / posted / GMV / items_sold); inline metadata editor
+  accepts all new fields with `&` → " and " normalization (7913d8d) so
+  UI-typed "Moisturizers & Mists" lands as `moisturizers-and-mists`.
 - Ranker (`lib/search/rank.ts`) carries gmv_usd + items_sold in
   `RankInput` but **finalScore formula unchanged** — tuning weights on
-  3 videos with NULL analytics is noise. Real ranker pass deferred until
-  ~20+ videos with real GMV exist.
+  3 videos is noise. Real ranker pass deferred until ~20+ videos with
+  real GMV exist.
 - Knowledge corpus cleanup: Cialdini PDF (knowledge_item `6898187f`)
   retitled to "Influence: The Psychology of Persuasion" with source_label
   "Cialdini - Influence". Pre-pivot "Male creator skincare positioning
@@ -51,18 +62,31 @@ is corpus size and structured retrieval keys — not the script-gen UX.
   corpus_chunks. `source_trust` flattened — Hormozi stub label removed,
   personal-notes weight set to 1.0. Cameron's stance: all knowledge
   trusted equally for script-gen; the lever stays for later.
-- Backfill runbook for the 3 existing embedded videos written at
-  `db/backfill/0010_backfill_runbook.md`. Insurance dump captured in
-  the session transcript; Supabase PITR covers 7-day rollback.
+- Backfill runbook for the 3 existing embedded videos at
+  `db/backfill/0010_backfill_runbook.md`. Durable insurance dump at
+  `db/backfill/0010_pre_rerun.json` (3 breakdowns + 22 corpus_chunks,
+  no embeddings — regenerable from text). Supabase PITR covers a
+  7-day rollback window.
 
-**Corpus state at 2026-05-17:** 3 embedded videos (`d21d7f8b` Medicube
-Mud Mask, `5d44a1de` Dr. Melaxin Lip Plumper, `d5240f30` Dr. Melaxin
-Calcium Multi Balm — STATUS had previously said 2, was stale by one
-upload), 1 failed (`6cae114c` screen recording), 2 duplicates. 1
-embedded knowledge item (Cialdini's *Influence*, now properly labeled).
-Every video has `view_count` + `posted_at` NULL today → ranker virality
-+ recency components score 0 across the board until Cameron supplies
-analytics.
+**Corpus state at 2026-05-18 (after Cameron's metadata pass):**
+3 embedded videos, all now with analytics + structured product fields
+populated:
+
+| ID | Brand · Product | Views | Posted | GMV (USD) | Sold | product_category |
+|---|---|---|---|---|---|---|
+| `d21d7f8b` | Medicube Zero Pore Blackhead Mud Mask | 22.48M | 2026-04-27 | $62,020 | 3,250 | `[face-mask]` |
+| `5d44a1de` | Dr. Melaxin BP Spicule Plumping Lip Shot | 11.62M | 2026-04-02 | $130,010 | 7,660 | `[lip-plumper, lipstick-and-lip-gloss]` |
+| `d5240f30` | Dr. Melaxin Calcium Multi Balm | 7.16M | 2026-03-14 | $139,430 | 8,040 | `[moisturizers-and-mists]` |
+
+`active_ingredients` populated for all 3. `function_claims` populated
+for 2/3 — `d21d7f8b` empty (backfill will fill from transcript).
+Plus 1 failed (`6cae114c` screen recording), 2 duplicates. 1 embedded
+knowledge item (Cialdini's *Influence*).
+
+The 3 existing videos still carry their pre-Slice-8 `breakdowns` rows
+(no `product_category` / `active_ingredients` / `function_claims` extracted
+into the JSON, no `tonality` or `authenticity_signals` `corpus_chunks`).
+Backfill regenerates these — see "Next concrete action".
 
 **Pre-Phase-2 code audit (2026-05-17):** ran a comprehensive health check
 across security / pipeline / code quality. 1 fix shipped immediately
@@ -70,7 +94,7 @@ across security / pipeline / code quality. 1 fix shipped immediately
 Phase 2 Slice 1's auth retrofit — see "Pre-Phase-2 audit findings" section
 below for the full list with file:line refs. Not bundled into Slice 8.
 
-**Last updated:** 2026-05-17 (Slice 8 brain-quality code + migration landed; pending commit/deploy/backfill)
+**Last updated:** 2026-05-18 (Slice 8 + follow-ups deployed at 7913d8d; data state captured)
 
 ## Read these in order
 
@@ -122,34 +146,43 @@ Numbered list from `PLAN.md` "Risks & open questions". Resolutions noted; left h
 | 5.5 | Metadata pivot: brand/product/gender/notes/ai_tags + neutral breakdown | **shipped ✓** |
 | 6 | Unified search across both corpora (now uses creator_gender/brand/product/ai_tags filters) | **shipped ✓** |
 | 7 | Polish (editable metadata, niche tags, clickable timestamps) | **shipped ✓** (deep links + editable metadata + clickable timestamps + DB-backed trust UI all landed) |
-| 8 | Brain quality: structured product axes (product_category / active_ingredients / function_claims), GMV/items_sold conversion columns, tonality + authenticity_signals as retrieval surfaces, knowledge corpus cleanup, trust flatten | **code + migration landed; pending commit/deploy/backfill** |
+| 8 | Brain quality: structured product axes (product_category[] / active_ingredients[] / function_claims[]), GMV/items_sold conversion columns, tonality + authenticity_signals as retrieval surfaces, knowledge corpus cleanup, trust flatten. Follow-ups: 0011 widened product_category to array + creator-claims prompt reframe; `&` → " and " UI normalize | **shipped ✓** (9984a11 + 8970ec79 + 7913d8d; backfill of 3 existing videos still pending Cameron's discretion) |
 
 ## Next concrete action
 
-**Three sequential moves, in order:**
+**Cameron's call on order — both moves needed before Phase 2 re-engages:**
 
-1. **Commit + deploy Slice 8 code.** Migration is already on prod DB,
-   but the code (prompt, pipeline, RPC clients, upload form, /search,
-   metadata editor) lives only in working tree. Run typecheck before
-   deploy (already passes locally as of writing).
+A. **Upload more videos.** Brain quality is the binding constraint and
+   3 videos can't validate retrieval. Target ≥20 videos with full
+   metadata (brand / product / creator_gender / GMV / items_sold /
+   posted_at / view_count) before the ranker formula pass and any
+   serious Phase 2 work. New uploads use the new prompt automatically
+   — no backfill needed for them.
 
-2. **Backfill the 3 existing embedded videos** under the new prompt
-   per `db/backfill/0010_backfill_runbook.md`. Without backfill, the
-   structured product fields stay empty on those rows and they won't
-   surface under `product_category` / `active_ingredient` filter pills
-   even though embeddings already exist. Backfill regenerates
-   breakdowns + corpus_chunks; transcripts + key_frames are kept
-   (idempotency gates skip STEP 1 + STEP 2).
+B. **Backfill the 3 existing embedded videos** per
+   `db/backfill/0010_backfill_runbook.md`. Without backfill, the
+   existing 3 still have pre-Slice-8 `breakdowns` rows (no
+   product_category / active_ingredients / function_claims in the
+   JSON, no tonality / authenticity_signals `corpus_chunks`). Note:
+   backfill OVERWRITES Cameron's hand-stamped `product_category` /
+   `active_ingredients` / `function_claims` values on the videos rows.
+   If those manual values were intentional (Cameron's TikTok shop
+   categories like `moisturizers-and-mists` are NOT something Claude
+   can derive from the video — those are TikTok platform metadata),
+   re-stamp them post-backfill via the inline metadata editor.
 
-3. **Cameron uploads more material.** SPEC said the brain learns from
-   videos + buyer-psych knowledge; v0 + Slice 8 built the *machine*,
-   but the brain is only as good as the corpus inside it. Upload
-   target before returning to Phase 2 script-gen: ~20+ videos so the
-   ranker formula pass (deferred from Slice 8) has signal to tune
-   against. As corpus grows, watch for filter dimensions that should
-   graduate to structured fields (per
-   [[feedback-skincare-scripter-filter-suggestions]] — flag them
-   proactively with evidence).
+   **Practical sequence to preserve Cameron's category values:** dump
+   the current videos.product_category for the 3 IDs first, run
+   backfill, re-merge or re-stamp. Or simpler: delete only `breakdowns`
+   + the new chunk_kinds (`tonality`, `authenticity_signals`,
+   `breakdown_summary`, etc.) and let STEP 4 regenerate; skip STEP 3's
+   videos.product_category overwrite — but that requires editing the
+   pipeline temporarily. Easiest: just re-stamp after backfill.
+
+Order can be A → B or B → A. A doesn't depend on backfill; B doesn't
+require new uploads first. Picking A first means more material to
+test retrieval quality against; picking B first means the existing
+videos get the new prompt's richer extraction sooner.
 
 **Phase 2 script-gen surface (PLAN_PHASE2) stays deferred** until brain
 is demonstrably good. The three load-bearing §2 questions
@@ -158,6 +191,10 @@ by the brain-quality work but don't unblock until corpus + retrieval
 quality clears a "this is worth wrapping a script-gen surface around"
 bar. Re-engage when Cameron has ~20 videos in and an `/search` query
 for a representative request returns the right grounding material.
+
+As corpus grows, watch for filter dimensions that should graduate to
+structured fields (per [[feedback-skincare-scripter-filter-suggestions]]
+— flag them proactively with evidence, not just suggestion).
 
 Already pre-decided in PLAN_PHASE2 (no Cameron action needed):
 - §2.4 `proxy.ts` disposition — keep as outer gate during invite-only
