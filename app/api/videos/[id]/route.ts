@@ -37,13 +37,20 @@ function parseNonNegNumber(v: unknown): number | null {
 }
 
 // Normalize comma-separated or array input to lowercase-hyphenated tokens.
-// Matches the format Claude emits for ai_tags / active_ingredients / function_claims.
+// Matches the format Claude emits for ai_tags / active_ingredients /
+// function_claims. `&` → " and " happens before whitespace collapse so
+// "Moisturizers & Mists" lands as `moisturizers-and-mists`, matching the
+// TikTok shop convention seen in `lipstick-and-lip-gloss`.
 function normalizeTokens(v: unknown): string[] {
   if (v === null || v === undefined) return [];
   const raw = Array.isArray(v) ? v : String(v).split(",");
   const out = new Set<string>();
   for (const item of raw) {
-    const t = String(item).trim().toLowerCase().replace(/\s+/g, "-");
+    const t = String(item)
+      .trim()
+      .toLowerCase()
+      .replace(/\s*&\s*/g, " and ")
+      .replace(/\s+/g, "-");
     if (t) out.add(t);
   }
   return [...out];
