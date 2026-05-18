@@ -21,29 +21,48 @@ filters used to match new script requests against past viral material across
 brands. Same-ingredient or same-category videos should land together even when
 brands differ.
 
-- \`product_category\`: ONE canonical product type, lowercase hyphen-separated.
-  Examples: "lip-plumper", "serum", "sunscreen", "mud-mask", "cleansing-balm",
-  "under-eye-treatment", "moisturizer", "exfoliant", "essence", "toner",
-  "spot-treatment". Pick the single best fit; if a product genuinely spans
-  two categories, pick the primary and put the secondary in \`ai_tags\`.
+- \`product_category\`: array of 1–4 lowercase-hyphen category descriptors.
+  Capture multiple facets:
+  (a) the canonical functional category — what the product IS
+      (e.g. "lip-plumper", "mud-mask", "under-eye-treatment", "serum",
+      "sunscreen", "cleansing-balm", "exfoliant", "essence", "toner",
+      "spot-treatment", "moisturizer");
+  (b) the TikTok shop classification when the video alludes to it OR
+      when the official shop category differs meaningfully from the
+      functional one (e.g. a lip plumper TikTok files under
+      "lipstick-and-lip-gloss"; a balm filed under "skin-care");
+  (c) alternative use-case categories the creator promotes — same
+      product framed as a "concealer-replacement" or "filler-dupe" etc.
+  Order doesn't matter; preserve the distinctions instead of collapsing
+  to one. If only the functional category is clear from the video,
+  emit a single-element array — don't invent the others.
 
 - \`active_ingredients\`: array of chemical / INCI ingredient names, lowercase
   hyphen-separated. ONLY include ingredients explicitly named in the video
   (transcript or on-screen text), not ingredients you assume the product
   contains. Examples: "hypochlorous-acid", "niacinamide", "retinol",
   "salicylic-acid", "vitamin-c", "hyaluronic-acid", "peptides", "ceramides",
-  "azelaic-acid", "tretinoin", "spicule" (when named that way). Leave empty
-  if no ingredient is named.
+  "azelaic-acid", "tretinoin", "spicule" (when named that way),
+  "aha", "bha", "pha", "bentonite", "kaolin". Leave empty if no
+  ingredient is named.
 
-- \`function_claims\`: array of end-user outcomes the video promises,
-  lowercase hyphen-separated. Examples: "plumping", "brightening",
-  "anti-aging", "pore-minimizing", "acne-clearing", "hydrating",
-  "dark-circle-reduction", "redness-reduction", "anti-inflammatory",
-  "exfoliating", "barrier-repair". 3–6 typical.
+- \`function_claims\`: array of what the creator says the product DOES,
+  FIXES, IMPROVES, or PROMISES in the video — captured in the creator's
+  framing, NOT restricted to brand-compliant language. Creators are
+  liberal with claims; brands are not. If the creator promises filler-
+  level results, anti-aging effects, or visible plumping, those are
+  claims, regardless of what the brand legally markets. Examples:
+  outcomes ("plumping", "brightening", "anti-aging", "pore-minimizing",
+  "acne-clearing", "hydrating", "barrier-repair"), problems addressed
+  ("dark-circles", "wrinkles", "sagging", "redness", "blackheads",
+  "fine-lines"), aspirational positioning ("filler-dupe",
+  "concealer-replacement", "instant-results"). 3–8 typical; lowercase
+  hyphen-separated.
 
 When unsure whether a term is an ingredient or a claim, prefer
 \`function_claims\` and leave \`active_ingredients\` empty. "Hydrating" is a
-claim; "hyaluronic acid" is an ingredient.
+claim; "hyaluronic acid" is an ingredient. "Anti-aging" is a claim;
+"retinol" is an ingredient.
 
 Also emit 5–10 \`ai_tags\` for the dimensions NOT covered by the structured
 fields above: audience signal, content format, hook tactic, use case
@@ -150,7 +169,7 @@ export const submitBreakdownTool = {
       visual_style_notes: { type: "string" },
       gender_specific_notes: { type: ["string", "null"] },
       ai_tags: { type: "array", items: { type: "string" } },
-      product_category: { type: ["string", "null"] },
+      product_category: { type: "array", items: { type: "string" } },
       active_ingredients: { type: "array", items: { type: "string" } },
       function_claims: { type: "array", items: { type: "string" } },
     },

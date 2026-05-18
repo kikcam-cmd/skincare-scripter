@@ -20,7 +20,7 @@ export type VideoMetadataFields = {
   creator_gender: Gender;
   user_notes: string | null;
   ai_tags: string[];
-  product_category: string | null;
+  product_category: string[];
   active_ingredients: string[];
   function_claims: string[];
   gmv_usd: number | null;
@@ -51,6 +51,7 @@ export function EditableMetadata({
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<VideoMetadataFields>(initial);
   // Arrays render as comma-separated strings in the UI; normalized server-side.
+  const [categoryInput, setCategoryInput] = useState(initial.product_category.join(", "));
   const [ingredientsInput, setIngredientsInput] = useState(initial.active_ingredients.join(", "));
   const [claimsInput, setClaimsInput] = useState(initial.function_claims.join(", "));
 
@@ -70,7 +71,7 @@ export function EditableMetadata({
           product_name: form.product_name,
           creator_gender: form.creator_gender,
           user_notes: form.user_notes,
-          product_category: form.product_category,
+          product_category: categoryInput,
           active_ingredients: ingredientsInput,
           function_claims: claimsInput,
           gmv_usd: form.gmv_usd,
@@ -92,6 +93,7 @@ export function EditableMetadata({
 
   const onCancel = () => {
     setForm(initial);
+    setCategoryInput(initial.product_category.join(", "));
     setIngredientsInput(initial.active_ingredients.join(", "));
     setClaimsInput(initial.function_claims.join(", "));
     setError(null);
@@ -183,22 +185,6 @@ export function EditableMetadata({
               ))}
             </datalist>
           </Field>
-          <Field label="Product category" htmlFor="product_category">
-            <Input
-              id="product_category"
-              list="categories-list"
-              placeholder="e.g. lip-plumper"
-              value={form.product_category ?? ""}
-              onChange={(e) =>
-                setForm({ ...form, product_category: e.target.value })
-              }
-            />
-            <datalist id="categories-list">
-              {suggestions.product_categories.map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
-          </Field>
           <Field label="GMV (USD)" htmlFor="gmv_usd">
             <Input
               id="gmv_usd"
@@ -231,6 +217,15 @@ export function EditableMetadata({
             />
           </Field>
         </div>
+
+        <Field label="Product category (comma-separated)" htmlFor="product_category">
+          <Input
+            id="product_category"
+            placeholder="e.g. lip-plumper, lipstick-and-lip-gloss"
+            value={categoryInput}
+            onChange={(e) => setCategoryInput(e.target.value)}
+          />
+        </Field>
 
         <Field label="Active ingredients (comma-separated)" htmlFor="active_ingredients">
           <Input
@@ -405,11 +400,6 @@ function ViewCard({
                 <span className="text-muted-foreground">Product:</span> {product}
               </span>
             )}
-            {category && (
-              <span>
-                <span className="text-muted-foreground">Category:</span> {category}
-              </span>
-            )}
             {gender !== "unknown" && (
               <span>
                 <span className="text-muted-foreground">Creator:</span> {gender}
@@ -427,8 +417,22 @@ function ViewCard({
           </Button>
         </div>
 
-        {(ingredients.length > 0 || claims.length > 0) && (
+        {(category.length > 0 || ingredients.length > 0 || claims.length > 0) && (
           <div className="space-y-1.5">
+            {category.length > 0 && (
+              <div>
+                <div className="text-xs font-mono uppercase tracking-wide text-muted-foreground">
+                  Product category
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {category.map((t) => (
+                    <Badge key={t} variant="secondary" className="font-mono text-xs">
+                      {t}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
             {ingredients.length > 0 && (
               <div>
                 <div className="text-xs font-mono uppercase tracking-wide text-muted-foreground">

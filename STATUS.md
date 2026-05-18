@@ -22,8 +22,11 @@ is corpus size and structured retrieval keys — not the script-gen UX.
 **What landed in Slice 8 (code, not yet deployed):**
 
 - Migration `0010_brain_quality.sql` applied to prod DB (yajpzqbrclsxhljialqs).
-- New `videos` columns: `product_category text`, `active_ingredients text[]`,
-  `function_claims text[]`, `gmv_usd numeric`, `items_sold integer`.
+- New `videos` columns: `product_category text[]` (widened from text in
+  0011 — Cameron's feedback: products legitimately fit multiple categories,
+  TikTok shop's classification often differs from functional category),
+  `active_ingredients text[]`, `function_claims text[]`, `gmv_usd numeric`,
+  `items_sold integer`.
 - Breakdown prompt extracts the three structured product axes with
   sharp INCI vs end-user-outcome guidance (Cialdini-trained rule: when
   unsure, prefer function_claims, leave ingredients empty).

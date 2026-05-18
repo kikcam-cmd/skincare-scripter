@@ -15,7 +15,7 @@ type Body = {
   product_name?: string | null;
   creator_gender?: "male" | "female" | "unknown";
   user_notes?: string | null;
-  product_category?: string | null;
+  product_category?: string[] | string | null;
   active_ingredients?: string[] | string | null;
   function_claims?: string[] | string | null;
   gmv_usd?: number | string | null;
@@ -70,7 +70,7 @@ export async function PATCH(
     product_name: nullIfEmpty(body.product_name),
     creator_gender: gender,
     user_notes: nullIfEmpty(body.user_notes),
-    product_category: nullIfEmpty(body.product_category),
+    product_category: normalizeTokens(body.product_category),
     active_ingredients: normalizeTokens(body.active_ingredients),
     function_claims: normalizeTokens(body.function_claims),
     gmv_usd: parseNonNegNumber(body.gmv_usd),

@@ -288,7 +288,7 @@ export async function processVideo({ videoId }: { videoId: string }): Promise<vo
         .update({
           status: "analyzed",
           ai_tags: parsed.ai_tags ?? [],
-          product_category: parsed.product_category ?? null,
+          product_category: parsed.product_category ?? [],
           active_ingredients: parsed.active_ingredients ?? [],
           function_claims: parsed.function_claims ?? [],
         })

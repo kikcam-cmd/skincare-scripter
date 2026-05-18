@@ -47,7 +47,7 @@ export type SearchRow = RankInput & {
   video_product_name: string | null;
   video_creator_gender: "male" | "female" | "unknown" | null;
   video_ai_tags: string[] | null;
-  video_product_category: string | null;
+  video_product_category: string[] | null;
   video_active_ingredients: string[] | null;
   video_function_claims: string[] | null;
   video_tonality: string | null;
@@ -133,7 +133,7 @@ export async function loadFilterOptions(): Promise<{
     if (v.niche_tag) niche.add(v.niche_tag as string);
     if (v.brand) brand.add(v.brand as string);
     if (v.product_name) product.add(v.product_name as string);
-    if (v.product_category) category.add(v.product_category as string);
+    for (const t of (v.product_category as string[] | null) ?? []) category.add(t);
     for (const t of (v.ai_tags as string[] | null) ?? []) ai.add(t);
     for (const t of (v.active_ingredients as string[] | null) ?? []) ingredient.add(t);
     for (const t of (v.function_claims as string[] | null) ?? []) claim.add(t);
