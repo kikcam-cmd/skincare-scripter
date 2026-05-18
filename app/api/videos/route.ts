@@ -13,15 +13,30 @@ type Body = {
   storagePath: string;
   filename: string;
   creatorHandle?: string;
-  viewCount?: number;
+  viewCount?: number | null;
   nicheTag?: string;
+  postedAt?: string | null; // YYYY-MM-DD
   creatorGender?: "male" | "female" | "unknown";
   brand?: string | null;
   productName?: string | null;
   userNotes?: string | null;
+  gmvUsd?: number | null;
+  itemsSold?: number | null;
 };
 
 const VALID_GENDERS = new Set(["male", "female", "unknown"]);
+
+function nullIfEmpty(v: unknown): string | null {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  return s === "" ? null : s;
+}
+
+function parseNonNegNumber(v: unknown): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
 
 export async function POST(req: Request) {
   const body = (await req.json()) as Body;
@@ -45,12 +60,15 @@ export async function POST(req: Request) {
       storage_path: body.storagePath,
       filename: body.filename,
       creator_handle: body.creatorHandle ?? null,
-      view_count: body.viewCount ?? null,
+      view_count: parseNonNegNumber(body.viewCount),
       niche_tag: body.nicheTag ?? null,
+      posted_at: nullIfEmpty(body.postedAt),
       creator_gender: creatorGender,
       brand: body.brand ?? null,
       product_name: body.productName ?? null,
       user_notes: body.userNotes ?? null,
+      gmv_usd: parseNonNegNumber(body.gmvUsd),
+      items_sold: parseNonNegNumber(body.itemsSold),
       status: "uploaded",
     })
     .select("id")

@@ -1,11 +1,18 @@
 # skincare-scripter Phase 2 — Script Generator Plan
 
-> **Status: planning doc, not a build spec.** Phase 2 has three load-bearing
-> decisions (§2) that have to resolve before §6-§8 can be drafted concretely.
-> The architecture and schema sketches in §3-§5 are parametric on those
-> answers — they show both branches, not "the build." Once Cameron picks the
-> branches, this doc gets a Slice 5.5-style "decisions locked" rewrite and the
-> open questions retire to a history pointer (the way v0 PLAN's §10 did).
+> **Status: deferred pending corpus growth (2026-05-17).** Cameron's pivot
+> during the §2 working session: *"perfect the brain"* before building the
+> script-gen surface. The three §2 questions (auth, multi-tenancy, script
+> contract) are all surface-level — they don't change retrieval quality.
+> With 3 embedded videos and NULL analytics data, none of the architectural
+> choices in §3-§8 can be empirically validated. Slice 8 (brain quality)
+> shipped instead — see STATUS.md for what landed. This doc re-engages once
+> Cameron has ~20+ videos in and `/search` returns the right grounding
+> material for representative requests.
+>
+> The original framing — three load-bearing decisions (§2) that gate §6-§8 —
+> still stands. Nothing in §2 has been invalidated; we just need to know
+> whether the brain works before deciding how to wrap a UX around it.
 
 ---
 

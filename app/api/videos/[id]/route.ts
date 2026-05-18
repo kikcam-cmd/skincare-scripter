@@ -15,6 +15,11 @@ type Body = {
   product_name?: string | null;
   creator_gender?: "male" | "female" | "unknown";
   user_notes?: string | null;
+  product_category?: string | null;
+  active_ingredients?: string[] | string | null;
+  function_claims?: string[] | string | null;
+  gmv_usd?: number | string | null;
+  items_sold?: number | string | null;
 };
 
 const VALID_GENDERS = new Set(["male", "female", "unknown"]);
@@ -25,10 +30,23 @@ function nullIfEmpty(v: unknown): string | null {
   return s === "" ? null : s;
 }
 
-function parseViewCount(v: unknown): number | null {
+function parseNonNegNumber(v: unknown): number | null {
   if (v === null || v === undefined || v === "") return null;
-  const n = typeof v === "number" ? v : parseInt(String(v), 10);
+  const n = typeof v === "number" ? v : Number(v);
   return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+// Normalize comma-separated or array input to lowercase-hyphenated tokens.
+// Matches the format Claude emits for ai_tags / active_ingredients / function_claims.
+function normalizeTokens(v: unknown): string[] {
+  if (v === null || v === undefined) return [];
+  const raw = Array.isArray(v) ? v : String(v).split(",");
+  const out = new Set<string>();
+  for (const item of raw) {
+    const t = String(item).trim().toLowerCase().replace(/\s+/g, "-");
+    if (t) out.add(t);
+  }
+  return [...out];
 }
 
 export async function PATCH(
@@ -45,13 +63,18 @@ export async function PATCH(
 
   const update = {
     creator_handle: nullIfEmpty(body.creator_handle),
-    view_count: parseViewCount(body.view_count),
+    view_count: parseNonNegNumber(body.view_count),
     posted_at: nullIfEmpty(body.posted_at),
     niche_tag: nullIfEmpty(body.niche_tag),
     brand: nullIfEmpty(body.brand),
     product_name: nullIfEmpty(body.product_name),
     creator_gender: gender,
     user_notes: nullIfEmpty(body.user_notes),
+    product_category: nullIfEmpty(body.product_category),
+    active_ingredients: normalizeTokens(body.active_ingredients),
+    function_claims: normalizeTokens(body.function_claims),
+    gmv_usd: parseNonNegNumber(body.gmv_usd),
+    items_sold: parseNonNegNumber(body.items_sold),
     updated_at: new Date().toISOString(),
   };
 

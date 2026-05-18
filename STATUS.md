@@ -6,31 +6,68 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 ## Where we are right now
 
-**Phase:** **v0 corpus-building half is feature-complete on prod;
-Phase 2 planning doc drafted, awaiting decisions on three open questions
-before code starts.** Latest commit `b08c448` (Phase 2 kickoff + audit
-fixes), deploy `dpl_9e4nEtRrTDFJSEQPSy1E3ZUfvmCd` READY, working tree
-clean. Slices 1–7 shipped: idempotent pipeline + sha256 dedup;
-transcripts/frames persistence + study-tool UI; Claude vision breakdown;
-embeddings + similar-videos panel; knowledge ingestion (PDF/MD/TXT/pasted);
-metadata pivot (brand/product/creator_gender/user_notes/ai_tags); unified
-semantic search across both corpora with URL-driven filter pills; `?t=N`
-and `?chunk=N` deep links; inline editable metadata on video detail with
-corpus_chunks.metadata propagation; clickable BreakdownSummary
-timestamps; DB-backed source-trust admin (`/trust`).
+**Phase:** **v0 (Slices 1–7) shipped on prod. Slice 8 brain-quality
+landed in code + migration 0010 applied to DB — code needs commit +
+deploy + backfill of 3 existing videos. Phase 2 script-gen surface
+deferred until corpus grows (Cameron uploading more material first).**
 
-**Phase 2 (script generator) kickoff:** `PLAN_PHASE2.md` drafted
-2026-05-17. Read it for the spine — three load-bearing open questions
-(multi-tenancy model, auth provider, script input/output contract) block
-the slice plan. See "Next concrete action" below.
+Slice 8 reframe (2026-05-17): Cameron's pivot during PLAN_PHASE2 §2
+discussion — *"perfect the brain"* before building the script-gen
+surface. PLAN_PHASE2 §2's three open questions are surface-level (auth,
+drafts, form contract) and don't move retrieval quality. With only 3
+embedded videos and `view_count`/`posted_at` NULL across all of them
+(virality + recency components scored 0 today), the binding constraint
+is corpus size and structured retrieval keys — not the script-gen UX.
+
+**What landed in Slice 8 (code, not yet deployed):**
+
+- Migration `0010_brain_quality.sql` applied to prod DB (yajpzqbrclsxhljialqs).
+- New `videos` columns: `product_category text`, `active_ingredients text[]`,
+  `function_claims text[]`, `gmv_usd numeric`, `items_sold integer`.
+- Breakdown prompt extracts the three structured product axes with
+  sharp INCI vs end-user-outcome guidance (Cialdini-trained rule: when
+  unsure, prefer function_claims, leave ingredients empty).
+- Pipeline persists the new fields in STEP 3; STEP 4 gains `tonality`
+  and `authenticity_signals` as new `chunk_kind` retrieval surfaces
+  (tonality moved out of breakdown_summary; authenticity_signals was
+  orphan-extracted in v0 — now retrievable).
+- `search_corpus` RPC gains 4 new filter params (`p_product_category`,
+  `p_active_ingredient`, `p_function_claim`, `p_tonality`) and projects
+  6 new columns (video_product_category, video_active_ingredients,
+  video_function_claims, video_gmv_usd, video_items_sold, video_tonality).
+- `/search` page gets 4 new filter pill rows; upload form + inline
+  metadata editor accept the new fields.
+- Ranker (`lib/search/rank.ts`) carries gmv_usd + items_sold in
+  `RankInput` but **finalScore formula unchanged** — tuning weights on
+  3 videos with NULL analytics is noise. Real ranker pass deferred until
+  ~20+ videos with real GMV exist.
+- Knowledge corpus cleanup: Cialdini PDF (knowledge_item `6898187f`)
+  retitled to "Influence: The Psychology of Persuasion" with source_label
+  "Cialdini - Influence". Pre-pivot "Male creator skincare positioning
+  (notes)" item (knowledge_item `ee328496`) deleted along with its 31
+  corpus_chunks. `source_trust` flattened — Hormozi stub label removed,
+  personal-notes weight set to 1.0. Cameron's stance: all knowledge
+  trusted equally for script-gen; the lever stays for later.
+- Backfill runbook for the 3 existing embedded videos written at
+  `db/backfill/0010_backfill_runbook.md`. Insurance dump captured in
+  the session transcript; Supabase PITR covers 7-day rollback.
+
+**Corpus state at 2026-05-17:** 3 embedded videos (`d21d7f8b` Medicube
+Mud Mask, `5d44a1de` Dr. Melaxin Lip Plumper, `d5240f30` Dr. Melaxin
+Calcium Multi Balm — STATUS had previously said 2, was stale by one
+upload), 1 failed (`6cae114c` screen recording), 2 duplicates. 1
+embedded knowledge item (Cialdini's *Influence*, now properly labeled).
+Every video has `view_count` + `posted_at` NULL today → ranker virality
++ recency components score 0 across the board until Cameron supplies
+analytics.
 
 **Pre-Phase-2 code audit (2026-05-17):** ran a comprehensive health check
 across security / pipeline / code quality. 1 fix shipped immediately
 (timing-safe Basic Auth compare in `proxy.ts`); 8 findings deferred into
 Phase 2 Slice 1's auth retrofit — see "Pre-Phase-2 audit findings" section
-below for the full list with file:line refs.
+below for the full list with file:line refs. Not bundled into Slice 8.
 
-**Last updated:** 2026-05-17 (audit done, audit findings captured, commit b08c448 deployed)
+**Last updated:** 2026-05-17 (Slice 8 brain-quality code + migration landed; pending commit/deploy/backfill)
 
 ## Read these in order
 
@@ -82,28 +119,42 @@ Numbered list from `PLAN.md` "Risks & open questions". Resolutions noted; left h
 | 5.5 | Metadata pivot: brand/product/gender/notes/ai_tags + neutral breakdown | **shipped ✓** |
 | 6 | Unified search across both corpora (now uses creator_gender/brand/product/ai_tags filters) | **shipped ✓** |
 | 7 | Polish (editable metadata, niche tags, clickable timestamps) | **shipped ✓** (deep links + editable metadata + clickable timestamps + DB-backed trust UI all landed) |
+| 8 | Brain quality: structured product axes (product_category / active_ingredients / function_claims), GMV/items_sold conversion columns, tonality + authenticity_signals as retrieval surfaces, knowledge corpus cleanup, trust flatten | **code + migration landed; pending commit/deploy/backfill** |
 
 ## Next concrete action
 
-**Resolve the three load-bearing open questions in `PLAN_PHASE2.md` §2.**
-The slice plan in §8 is a placeholder until these land. They are:
+**Three sequential moves, in order:**
 
-1. **§2.1 Multi-tenancy model** — shared corpus + per-user drafts
-   (recommended, matches SPEC) vs. per-affiliate corpus vs. hybrid.
-   Decides whether `videos` / `knowledge_items` / `corpus_chunks` need
-   an `owner_id` + RLS, which is a large blast radius.
-2. **§2.2 Auth provider** — Supabase Auth (recommended, inertia + same
-   project + cheaper) vs. Clerk (Marketplace, better UX, extra vendor)
-   vs. custom. If Supabase Auth: OTP codes not magic links per
-   [[feedback-email-link-prefetch]].
-3. **§2.3 Script input/output contract** — structured form
-   (recommended, maps 1:1 to existing search filters) vs. free-form
-   vs. hybrid; single draft (recommended for Slice 1) vs. variants vs.
-   iterative refinement. Schema candidate is sketched in PLAN_PHASE2 §2.3.
+1. **Commit + deploy Slice 8 code.** Migration is already on prod DB,
+   but the code (prompt, pipeline, RPC clients, upload form, /search,
+   metadata editor) lives only in working tree. Run typecheck before
+   deploy (already passes locally as of writing).
 
-Once §2 resolves, PLAN_PHASE2 gets a "decisions locked" banner, §3-§5
-become single-branch concrete, §8 fills in real ship criteria, and code
-starts on Slice 1 (smallest E2E: auth + structured form + single draft).
+2. **Backfill the 3 existing embedded videos** under the new prompt
+   per `db/backfill/0010_backfill_runbook.md`. Without backfill, the
+   structured product fields stay empty on those rows and they won't
+   surface under `product_category` / `active_ingredient` filter pills
+   even though embeddings already exist. Backfill regenerates
+   breakdowns + corpus_chunks; transcripts + key_frames are kept
+   (idempotency gates skip STEP 1 + STEP 2).
+
+3. **Cameron uploads more material.** SPEC said the brain learns from
+   videos + buyer-psych knowledge; v0 + Slice 8 built the *machine*,
+   but the brain is only as good as the corpus inside it. Upload
+   target before returning to Phase 2 script-gen: ~20+ videos so the
+   ranker formula pass (deferred from Slice 8) has signal to tune
+   against. As corpus grows, watch for filter dimensions that should
+   graduate to structured fields (per
+   [[feedback-skincare-scripter-filter-suggestions]] — flag them
+   proactively with evidence).
+
+**Phase 2 script-gen surface (PLAN_PHASE2) stays deferred** until brain
+is demonstrably good. The three load-bearing §2 questions
+(multi-tenancy, auth provider, script contract) are now better-informed
+by the brain-quality work but don't unblock until corpus + retrieval
+quality clears a "this is worth wrapping a script-gen surface around"
+bar. Re-engage when Cameron has ~20 videos in and an `/search` query
+for a representative request returns the right grounding material.
 
 Already pre-decided in PLAN_PHASE2 (no Cameron action needed):
 - §2.4 `proxy.ts` disposition — keep as outer gate during invite-only

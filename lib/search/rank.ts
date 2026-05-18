@@ -21,6 +21,11 @@ export type RankInput = {
   knowledge_created_at: string | null;
   video_view_count: number | null;
   knowledge_source_label: string | null;
+  // Carried for type completeness (RPC projects them, callers can read them
+  // from RankedResult). Not currently weighted into finalScore — formula
+  // pass deferred until corpus + analytics data exist to tune against.
+  video_gmv_usd: number | null;
+  video_items_sold: number | null;
 };
 
 const RECENCY_HALF_LIFE_DAYS = 90;

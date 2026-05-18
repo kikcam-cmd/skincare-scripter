@@ -16,11 +16,42 @@ differently when performed by a different-gender creator), fill the
 and how a creator of the opposite gender would need to adapt it. When the
 video is gender-neutral, leave \`gender_specific_notes\` null — do not pad it.
 
-Also emit 5–10 \`ai_tags\` — short freeform strings spanning product category,
-audience signal, content format, and use case (examples: "lip-plumper",
-"before-after", "gen-z-female-audience", "objection-bait-hook",
-"cosmetic-result-demo", "stitch-reaction"). Tags are for filterable
-retrieval; lowercase, hyphen-separated, no leading punctuation.
+Structured product retrieval keys — fill these carefully. They are first-class
+filters used to match new script requests against past viral material across
+brands. Same-ingredient or same-category videos should land together even when
+brands differ.
+
+- \`product_category\`: ONE canonical product type, lowercase hyphen-separated.
+  Examples: "lip-plumper", "serum", "sunscreen", "mud-mask", "cleansing-balm",
+  "under-eye-treatment", "moisturizer", "exfoliant", "essence", "toner",
+  "spot-treatment". Pick the single best fit; if a product genuinely spans
+  two categories, pick the primary and put the secondary in \`ai_tags\`.
+
+- \`active_ingredients\`: array of chemical / INCI ingredient names, lowercase
+  hyphen-separated. ONLY include ingredients explicitly named in the video
+  (transcript or on-screen text), not ingredients you assume the product
+  contains. Examples: "hypochlorous-acid", "niacinamide", "retinol",
+  "salicylic-acid", "vitamin-c", "hyaluronic-acid", "peptides", "ceramides",
+  "azelaic-acid", "tretinoin", "spicule" (when named that way). Leave empty
+  if no ingredient is named.
+
+- \`function_claims\`: array of end-user outcomes the video promises,
+  lowercase hyphen-separated. Examples: "plumping", "brightening",
+  "anti-aging", "pore-minimizing", "acne-clearing", "hydrating",
+  "dark-circle-reduction", "redness-reduction", "anti-inflammatory",
+  "exfoliating", "barrier-repair". 3–6 typical.
+
+When unsure whether a term is an ingredient or a claim, prefer
+\`function_claims\` and leave \`active_ingredients\` empty. "Hydrating" is a
+claim; "hyaluronic acid" is an ingredient.
+
+Also emit 5–10 \`ai_tags\` for the dimensions NOT covered by the structured
+fields above: audience signal, content format, hook tactic, use case
+(examples: "gen-z-female-audience", "before-after-demo", "stitch-reaction",
+"car-confessional-format", "objection-bait-hook", "ugc-style",
+"comment-reply-format"). Do NOT duplicate product_category, ingredients, or
+claims into ai_tags — those have dedicated fields now. Tags lowercase,
+hyphen-separated, no leading punctuation.
 
 You will receive:
 - The full transcript as timestamped lines: [t_start-t_end] text
@@ -59,6 +90,7 @@ export const submitBreakdownTool = {
       "tonality", "authenticity_signals", "pacing_notes",
       "buyer_psychology_levers", "visual_style_notes",
       "gender_specific_notes", "ai_tags",
+      "product_category", "active_ingredients", "function_claims",
     ],
     properties: {
       hook: {
@@ -118,6 +150,9 @@ export const submitBreakdownTool = {
       visual_style_notes: { type: "string" },
       gender_specific_notes: { type: ["string", "null"] },
       ai_tags: { type: "array", items: { type: "string" } },
+      product_category: { type: ["string", "null"] },
+      active_ingredients: { type: "array", items: { type: "string" } },
+      function_claims: { type: "array", items: { type: "string" } },
     },
   },
 } as const satisfies Anthropic.Tool;

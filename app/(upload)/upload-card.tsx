@@ -19,12 +19,20 @@ export function UploadCard() {
   const [brand, setBrand] = useState("");
   const [productName, setProductName] = useState("");
   const [userNotes, setUserNotes] = useState("");
+  const [viewCount, setViewCount] = useState("");
+  const [postedAt, setPostedAt] = useState("");
+  const [gmvUsd, setGmvUsd] = useState("");
+  const [itemsSold, setItemsSold] = useState("");
 
   const resetMetadata = () => {
     setCreatorGender("unknown");
     setBrand("");
     setProductName("");
     setUserNotes("");
+    setViewCount("");
+    setPostedAt("");
+    setGmvUsd("");
+    setItemsSold("");
   };
 
   const onDrop = useCallback(
@@ -61,6 +69,10 @@ export function UploadCard() {
             brand: brand.trim() || null,
             productName: productName.trim() || null,
             userNotes: userNotes.trim() || null,
+            viewCount: viewCount.trim() === "" ? null : Number(viewCount),
+            postedAt: postedAt.trim() || null,
+            gmvUsd: gmvUsd.trim() === "" ? null : Number(gmvUsd),
+            itemsSold: itemsSold.trim() === "" ? null : Number(itemsSold),
           }),
         });
         if (!regRes.ok) throw new Error(`register failed: ${await regRes.text()}`);
@@ -74,7 +86,7 @@ export function UploadCard() {
         setPhase("error");
       }
     },
-    [router, creatorGender, brand, productName, userNotes],
+    [router, creatorGender, brand, productName, userNotes, viewCount, postedAt, gmvUsd, itemsSold],
   );
 
   const busy = phase === "signing" || phase === "uploading" || phase === "registering";
@@ -136,6 +148,52 @@ export function UploadCard() {
             ))}
           </div>
         </Field>
+
+        <div className="grid gap-4 sm:grid-cols-4">
+          <Field label="Views">
+            <input
+              type="number"
+              min={0}
+              value={viewCount}
+              onChange={(e) => setViewCount(e.target.value)}
+              placeholder="250000"
+              disabled={busy}
+              className="w-full h-9 px-3 rounded-md border bg-background text-sm"
+            />
+          </Field>
+          <Field label="Posted">
+            <input
+              type="date"
+              value={postedAt}
+              onChange={(e) => setPostedAt(e.target.value)}
+              disabled={busy}
+              className="w-full h-9 px-3 rounded-md border bg-background text-sm"
+            />
+          </Field>
+          <Field label="GMV (USD)">
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={gmvUsd}
+              onChange={(e) => setGmvUsd(e.target.value)}
+              placeholder="3200"
+              disabled={busy}
+              className="w-full h-9 px-3 rounded-md border bg-background text-sm"
+            />
+          </Field>
+          <Field label="Items sold">
+            <input
+              type="number"
+              min={0}
+              value={itemsSold}
+              onChange={(e) => setItemsSold(e.target.value)}
+              placeholder="180"
+              disabled={busy}
+              className="w-full h-9 px-3 rounded-md border bg-background text-sm"
+            />
+          </Field>
+        </div>
 
         <Field label="Notes (optional)">
           <textarea

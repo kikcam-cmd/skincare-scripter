@@ -85,22 +85,31 @@ export default async function VideoDetailPage({
   // promote to a dedicated helper if other surfaces need the same data.
   const { data: allMeta } = await admin
     .from("videos")
-    .select("niche_tag, brand, product_name")
+    .select("niche_tag, brand, product_name, product_category, active_ingredients, function_claims")
     .neq("id", id);
   const suggestions: Suggestions = (() => {
     const niche = new Set<string>();
     const brand = new Set<string>();
     const product = new Set<string>();
+    const category = new Set<string>();
+    const ingredient = new Set<string>();
+    const claim = new Set<string>();
     for (const v of allMeta ?? []) {
       if (v.niche_tag) niche.add(v.niche_tag as string);
       if (v.brand) brand.add(v.brand as string);
       if (v.product_name) product.add(v.product_name as string);
+      if (v.product_category) category.add(v.product_category as string);
+      for (const t of (v.active_ingredients as string[] | null) ?? []) ingredient.add(t);
+      for (const t of (v.function_claims as string[] | null) ?? []) claim.add(t);
     }
     const sort = (s: Set<string>) => [...s].sort((a, b) => a.localeCompare(b));
     return {
       niche_tags: sort(niche),
       brands: sort(brand),
       products: sort(product),
+      product_categories: sort(category),
+      active_ingredients: sort(ingredient),
+      function_claims: sort(claim),
     };
   })();
 
@@ -118,6 +127,19 @@ export default async function VideoDetailPage({
       ((video.creator_gender as "male" | "female" | "unknown" | null) ?? "unknown"),
     user_notes: (video.user_notes as string | null) ?? null,
     ai_tags: Array.isArray(video.ai_tags) ? (video.ai_tags as string[]) : [],
+    product_category: (video.product_category as string | null) ?? null,
+    active_ingredients: Array.isArray(video.active_ingredients)
+      ? (video.active_ingredients as string[])
+      : [],
+    function_claims: Array.isArray(video.function_claims)
+      ? (video.function_claims as string[])
+      : [],
+    gmv_usd:
+      video.gmv_usd === null || video.gmv_usd === undefined ? null : Number(video.gmv_usd),
+    items_sold:
+      video.items_sold === null || video.items_sold === undefined
+        ? null
+        : Number(video.items_sold),
   };
 
   const isPending = !TERMINAL.includes(video.status);

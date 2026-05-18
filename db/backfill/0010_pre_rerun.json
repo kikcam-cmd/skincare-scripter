@@ -1,0 +1,823 @@
+{
+  "breakdowns": [
+    {
+      "authenticity_signals": [
+        "Self-correction on duration claim: volunteers that brand says 8 hours but she personally sees 4, framing herself as honest over promotional",
+        "Time-lapse application shown in real time in an unglamorous car setting, not a studio",
+        "2-hour update is a genuine location change (car \u2192 outdoor home setting), implying real elapsed time rather than a quick cut",
+        "Close-up fingertip press on bottom lip at t=58.8s demonstrates physical plump is tactile, not cosmetic gloss",
+        "Embeds a male creator's stitch reaction clip (t=45s) \u2014 citing others' experiences rather than only her own",
+        "Admits the product was hard to obtain ('sold out for two months, I had to wait forever') \u2014 product scarcity signals real demand and her own commitment"
+      ],
+      "buyer_psychology_levers": [
+        "Loss aversion \u2014 'This saved me like thousands of dollars' primes the viewer to feel they are already losing money by not owning this product",
+        "Social proof \u2014 pinned comment from another user, embedded male-creator reaction clip, and sold-out-for-two-months demand signal all layer third-party validation",
+        "Authority via mechanism science \u2014 spicule micro-delivery explanation elevates the product above 'just a gloss' and gives the viewer a scientific rationale to justify the purchase",
+        "Scarcity \u2014 two-month sellout history positions stock as perpetually at risk",
+        "Urgency \u2014 flash sale time pressure at the CTA compresses decision time",
+        "Aspirational identity signaling \u2014 'looks like I just left and got filler' anchors the result to a high-status, expensive aesthetic outcome, selling the identity of someone who 'has filler lips' without the stigma or cost of actual filler",
+        "Objection pre-emption (category indictment) \u2014 dismissing all competing plumpers as red/itchy removes the viewer's next-best alternative, collapsing the comparison set"
+      ],
+      "created_at": "2026-05-17T05:34:48.091131+00:00",
+      "cta": {
+        "style": "Scarcity + urgency stack: social proof of demand (two-month sellout) combined with time-limited price incentive (flash sale) and a direct link tap prompt. The 'hurry' closer is a naked urgency trigger. Tone stays casual/urgent rather than salesy, maintaining the friend-recommendation frame established throughout.",
+        "t_end": 67,
+        "t_start": 59.36,
+        "text": "It was literally sold out for two freaking months \u2014 I had to wait forever. If you can see the link, they're also on flash sale right now, hurry."
+      },
+      "gender_specific_notes": "The hook's cost-savings framing ('saved me like thousands of dollars') implicitly references lip filler, a procedure more culturally coded as a female beauty investment. The creator's female presentation makes the filler-alternative positioning land naturally. A male creator replicating this video would need to either lean into the novelty angle (the embedded male stitch clip at t=45s shows this CAN work \u2014 his plump result reads as shocking/funny, which is its own hook) or reframe the savings comparison away from filler and toward a unisex grooming outcome. The 'filler' aspiration language in the solution beat is the one element that needs adaptation for a male creator.",
+      "hook": {
+        "t_end": 5,
+        "t_start": 0,
+        "text": "Pinned comment overlay reads 'This saved me like thousands of dollars' while the creator sits in a car with visibly plumped lips, immediately implying filler-level results without the filler price tag. The visual result IS the hook \u2014 massively plump lips on screen before a single word is spoken, paired with a third-party cost-savings claim.",
+        "type": "result-first visual proof + third-party social-proof overlay",
+        "why_it_works": "Dual-layer pattern interrupt: the viewer sees the dramatic lip result BEFORE the product is explained, creating an instant 'how did she do that?' loop. The pinned comment acts as a false-authority/peer-validation gambit \u2014 it's not the creator claiming value, it's 'someone else' quantifying savings in the thousands, pre-loading a loss-aversion frame before the pitch even begins."
+      },
+      "model": "claude-sonnet-4-6",
+      "pacing_notes": "Three-act compression within 67 seconds: Act 1 (0\u201322s) is hook + time-lapse application with countdown text ('time lapse begins in 1') building suspense; Act 2 (22\u201348s) is the immediate result reveal + mechanism explanation + product identity reveal, the longest and most info-dense section; Act 3 (48\u201367s) is 2-hour durability proof + urgency CTA. The on-screen text 'skip to 0:24 for results' is a retention hack \u2014 it invites skippers to jump forward rather than scroll away, keeping view-duration metrics healthy while serving impatient viewers.",
+      "problem": {
+        "framing": "Category indictment \u2014 positions all competing lip plumpers as inferior and harmful ('make your lips red and itchy'), elevating the consumer's frustration with the whole category rather than just one product. This is a contrarian-claim problem frame: the creator doesn't say 'I had thin lips,' she says the entire existing solution set is broken.",
+        "t_end": 24,
+        "t_start": 5,
+        "text": "Implicit problem established visually and verbally: other lip plumpers only make lips red and itchy without real plumping \u2014 they're performative irritants, not actual volume solutions. The underlying desire (filler-sized lips without a clinic visit or the cost) is surfaced by the 'thousands of dollars' comment and the filler comparison ('looks like I just left and got filler')."
+      },
+      "raw_claude_response": {
+        "content": [
+          {
+            "caller": {
+              "type": "direct"
+            },
+            "id": "toolu_01A7j33RWE4R3LM9mi1zcapK",
+            "input": {
+              "ai_tags": [
+                "lip-plumper",
+                "dr-melaxin",
+                "korean-skincare",
+                "before-after-demo",
+                "spicule-technology",
+                "filler-dupe-positioning",
+                "comment-reply-format",
+                "time-lapse-application",
+                "scarcity-urgency-cta",
+                "gen-z-female-audience"
+              ],
+              "authenticity_signals": [
+                "Self-correction on duration claim: volunteers that brand says 8 hours but she personally sees 4, framing herself as honest over promotional",
+                "Time-lapse application shown in real time in an unglamorous car setting, not a studio",
+                "2-hour update is a genuine location change (car \u2192 outdoor home setting), implying real elapsed time rather than a quick cut",
+                "Close-up fingertip press on bottom lip at t=58.8s demonstrates physical plump is tactile, not cosmetic gloss",
+                "Embeds a male creator's stitch reaction clip (t=45s) \u2014 citing others' experiences rather than only her own",
+                "Admits the product was hard to obtain ('sold out for two months, I had to wait forever') \u2014 product scarcity signals real demand and her own commitment"
+              ],
+              "buyer_psychology_levers": [
+                "Loss aversion \u2014 'This saved me like thousands of dollars' primes the viewer to feel they are already losing money by not owning this product",
+                "Social proof \u2014 pinned comment from another user, embedded male-creator reaction clip, and sold-out-for-two-months demand signal all layer third-party validation",
+                "Authority via mechanism science \u2014 spicule micro-delivery explanation elevates the product above 'just a gloss' and gives the viewer a scientific rationale to justify the purchase",
+                "Scarcity \u2014 two-month sellout history positions stock as perpetually at risk",
+                "Urgency \u2014 flash sale time pressure at the CTA compresses decision time",
+                "Aspirational identity signaling \u2014 'looks like I just left and got filler' anchors the result to a high-status, expensive aesthetic outcome, selling the identity of someone who 'has filler lips' without the stigma or cost of actual filler",
+                "Objection pre-emption (category indictment) \u2014 dismissing all competing plumpers as red/itchy removes the viewer's next-best alternative, collapsing the comparison set"
+              ],
+              "cta": {
+                "style": "Scarcity + urgency stack: social proof of demand (two-month sellout) combined with time-limited price incentive (flash sale) and a direct link tap prompt. The 'hurry' closer is a naked urgency trigger. Tone stays casual/urgent rather than salesy, maintaining the friend-recommendation frame established throughout.",
+                "t_end": 67,
+                "t_start": 59.36,
+                "text": "It was literally sold out for two freaking months \u2014 I had to wait forever. If you can see the link, they're also on flash sale right now, hurry."
+              },
+              "gender_specific_notes": "The hook's cost-savings framing ('saved me like thousands of dollars') implicitly references lip filler, a procedure more culturally coded as a female beauty investment. The creator's female presentation makes the filler-alternative positioning land naturally. A male creator replicating this video would need to either lean into the novelty angle (the embedded male stitch clip at t=45s shows this CAN work \u2014 his plump result reads as shocking/funny, which is its own hook) or reframe the savings comparison away from filler and toward a unisex grooming outcome. The 'filler' aspiration language in the solution beat is the one element that needs adaptation for a male creator.",
+              "hook": {
+                "t_end": 5,
+                "t_start": 0,
+                "text": "Pinned comment overlay reads 'This saved me like thousands of dollars' while the creator sits in a car with visibly plumped lips, immediately implying filler-level results without the filler price tag. The visual result IS the hook \u2014 massively plump lips on screen before a single word is spoken, paired with a third-party cost-savings claim.",
+                "type": "result-first visual proof + third-party social-proof overlay",
+                "why_it_works": "Dual-layer pattern interrupt: the viewer sees the dramatic lip result BEFORE the product is explained, creating an instant 'how did she do that?' loop. The pinned comment acts as a false-authority/peer-validation gambit \u2014 it's not the creator claiming value, it's 'someone else' quantifying savings in the thousands, pre-loading a loss-aversion frame before the pitch even begins."
+              },
+              "pacing_notes": "Three-act compression within 67 seconds: Act 1 (0\u201322s) is hook + time-lapse application with countdown text ('time lapse begins in 1') building suspense; Act 2 (22\u201348s) is the immediate result reveal + mechanism explanation + product identity reveal, the longest and most info-dense section; Act 3 (48\u201367s) is 2-hour durability proof + urgency CTA. The on-screen text 'skip to 0:24 for results' is a retention hack \u2014 it invites skippers to jump forward rather than scroll away, keeping view-duration metrics healthy while serving impatient viewers.",
+              "problem": {
+                "framing": "Category indictment \u2014 positions all competing lip plumpers as inferior and harmful ('make your lips red and itchy'), elevating the consumer's frustration with the whole category rather than just one product. This is a contrarian-claim problem frame: the creator doesn't say 'I had thin lips,' she says the entire existing solution set is broken.",
+                "t_end": 24,
+                "t_start": 5,
+                "text": "Implicit problem established visually and verbally: other lip plumpers only make lips red and itchy without real plumping \u2014 they're performative irritants, not actual volume solutions. The underlying desire (filler-sized lips without a clinic visit or the cost) is surfaced by the 'thousands of dollars' comment and the filler comparison ('looks like I just left and got filler')."
+              },
+              "solution": {
+                "t_end": 59.36,
+                "t_start": 5,
+                "text": "Dr. Melaxin BP Spicule Plumping Lip Shot shown producing filler-comparable results: time-lapse application demo in the car (t=5\u201322s), immediate post-application reveal with visibly swollen, glossy lips (t=25\u201338s), product bottle close-up (t=42s), 2-hour update shot outdoors with lips still dramatically full (t=52\u201358s), and a final close-up fingertip press on the bottom lip showing the plump is real and not just gloss (t=58.8s). Duration claim anchored: 'still freaking huge' at 2 hours, realistic ceiling set at 4 hours despite brand claims of 8."
+              },
+              "tonality": "Casual, conspiratorial best-friend energy \u2014 the creator speaks like she's sharing a personal discovery, not pitching. Enthusiastic but self-correcting (she volunteers that it lasts 4 hours, not the brand-claimed 8), which paradoxically increases credibility. Mild profanity ('freaking huge,' 'freaking months') reinforces authenticity and keeps the tone relatable rather than advertorial.",
+              "twist": {
+                "t_end": 48.7,
+                "t_start": 24,
+                "tactic": "Mechanism differentiation via novel ingredient science \u2014 the spicule mechanism is presented as the reason competitors fail (they only irritate) while this works (physical micro-delivery + vasodilation). The wipe-off-and-plump-stays demo is a live objection crusher against 'it's just the product making it look bigger'.",
+                "text": "The mechanism reveal: this is a *Korean spicule* lip plumper \u2014 tiny physical spicules penetrate the lip tissue and rush blood flow to the area, creating structural plump that stays even after wiping the product off. This separates it mechanistically from every tingling gloss the viewer has tried. Reinforced at t=42s with a close-up product hold showing the clear serum tube, and at t=45s with an embedded stitch/reaction clip of a bearded male creator also demoing the product (cross-gender social proof broadening the believability pool)."
+              },
+              "visual_style_notes": "Entirely selfie-cam, no production crew. Two locations: car interior (hook through mechanism section) and outdoor residential setting (2-hour update), both shot in natural daylight. The casual lo-fi aesthetic is load-bearing \u2014 it signals 'real person, real result' rather than a brand shoot. Persistent on-screen comment overlay ('This saved me like thousands of dollars') is never removed across the full video, keeping the social-proof frame active in every frame. Lips are centered and fill significant screen real estate in most shots, functioning as a continuous before/after comparison for the viewer as the video progresses."
+            },
+            "name": "submit_breakdown",
+            "type": "tool_use"
+          }
+        ],
+        "id": "msg_01AhRXYcgKgZiMdcRJRBzUeq",
+        "model": "claude-sonnet-4-6",
+        "role": "assistant",
+        "stop_details": null,
+        "stop_reason": "tool_use",
+        "stop_sequence": null,
+        "type": "message",
+        "usage": {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 0,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "inference_geo": "global",
+          "input_tokens": 29927,
+          "output_tokens": 2207,
+          "service_tier": "standard"
+        }
+      },
+      "solution": {
+        "t_end": 59.36,
+        "t_start": 5,
+        "text": "Dr. Melaxin BP Spicule Plumping Lip Shot shown producing filler-comparable results: time-lapse application demo in the car (t=5\u201322s), immediate post-application reveal with visibly swollen, glossy lips (t=25\u201338s), product bottle close-up (t=42s), 2-hour update shot outdoors with lips still dramatically full (t=52\u201358s), and a final close-up fingertip press on the bottom lip showing the plump is real and not just gloss (t=58.8s). Duration claim anchored: 'still freaking huge' at 2 hours, realistic ceiling set at 4 hours despite brand claims of 8."
+      },
+      "tonality": "Casual, conspiratorial best-friend energy \u2014 the creator speaks like she's sharing a personal discovery, not pitching. Enthusiastic but self-correcting (she volunteers that it lasts 4 hours, not the brand-claimed 8), which paradoxically increases credibility. Mild profanity ('freaking huge,' 'freaking months') reinforces authenticity and keeps the tone relatable rather than advertorial.",
+      "twist": {
+        "t_end": 48.7,
+        "t_start": 24,
+        "tactic": "Mechanism differentiation via novel ingredient science \u2014 the spicule mechanism is presented as the reason competitors fail (they only irritate) while this works (physical micro-delivery + vasodilation). The wipe-off-and-plump-stays demo is a live objection crusher against 'it's just the product making it look bigger'.",
+        "text": "The mechanism reveal: this is a *Korean spicule* lip plumper \u2014 tiny physical spicules penetrate the lip tissue and rush blood flow to the area, creating structural plump that stays even after wiping the product off. This separates it mechanistically from every tingling gloss the viewer has tried. Reinforced at t=42s with a close-up product hold showing the clear serum tube, and at t=45s with an embedded stitch/reaction clip of a bearded male creator also demoing the product (cross-gender social proof broadening the believability pool)."
+      },
+      "video_id": "5d44a1de-53a1-4af4-862f-fdfee90c5de2",
+      "visual_style_notes": "Entirely selfie-cam, no production crew. Two locations: car interior (hook through mechanism section) and outdoor residential setting (2-hour update), both shot in natural daylight. The casual lo-fi aesthetic is load-bearing \u2014 it signals 'real person, real result' rather than a brand shoot. Persistent on-screen comment overlay ('This saved me like thousands of dollars') is never removed across the full video, keeping the social-proof frame active in every frame. Lips are centered and fill significant screen real estate in most shots, functioning as a continuous before/after comparison for the viewer as the video progresses."
+    },
+    {
+      "authenticity_signals": [
+        "Visible skin imperfections (redness, pores, minor blemishes) left unretouched throughout",
+        "DJI clip-on mic clipped to t-shirt signals 'just a regular person with basic gear'",
+        "Bedroom background with personal items (hats, toys) rather than a staged set",
+        "'I'm pissed they put it on sale after I already bought it' \u2014 positions creator as a genuine paying customer, not a gifted partner",
+        "Unscripted 'ew' reactions during mask application and wipe-off feel spontaneous",
+        "Dirty wipe held directly to camera \u2014 physical, unfalsifiable proof of extraction",
+        "'It hasn't even been 10 minutes' \u2014 real-time clock anchoring implies unedited experience"
+      ],
+      "buyer_psychology_levers": [
+        "Loss aversion \u2014 'go fast before they sell out again' frames inaction as losing a deal, not just missing a purchase",
+        "Social proof \u2014 'it's been going viral all over my For You page' outsources credibility to the crowd before the creator has established personal authority",
+        "Disgust-driven efficacy proof \u2014 the extracted debris on the wipe provides concrete, visual evidence of product function that bypasses rational skepticism",
+        "In-group identity signaling \u2014 'we have super sensitive skin' creates tribal belonging, making the product feel like a solution designed specifically for this viewer",
+        "Urgency / artificial scarcity \u2014 sale + sold-out framing compresses decision time and punishes deliberation",
+        "Authority via ingredient name-drop \u2014 citing AHA, BHA, PHA by name implies scientific literacy and elevates perceived product credibility without deep explanation"
+      ],
+      "created_at": "2026-05-17T05:37:04.272908+00:00",
+      "cta": {
+        "style": "Faux-reluctant scarcity CTA with manufactured FOMO. The 'I'm annoyed the sale happened after I paid full price' framing is a credibility-first move \u2014 it positions the creator as a genuine buyer rather than a paid shill, then immediately weaponizes that credibility to inject urgency via implied stock scarcity ('if they're not sold out', 'before they sell out again'). Pointing the tube directly at the camera at t=32.0s functions as a visual command gesture reinforcing the link-click directive.",
+        "t_end": 35.53,
+        "t_start": 26.36,
+        "text": "I am a little pissed because of course they go on a huge sale right after I get one. If they're not sold out by now, I'll leave the link right down below. So if you still see it, go fast before they sell out again."
+      },
+      "gender_specific_notes": "The \"we can't just put anything on our faces because we have super sensitive skin\" framing is gender-neutral as delivered, and a male creator using a face mask on TikTok carries a mild pattern-interrupt value (men doing skincare still reads as subversive-enough to drive comment engagement). A female creator replicating this video would lose that subtle novelty signal \u2014 to compensate, she could lean harder into the sensitive-skin community angle or add a before/after skin texture comparison to maintain the same stop-scroll weight.",
+      "hook": {
+        "t_end": 3.6,
+        "t_start": 0.02,
+        "text": "If you have these, these, or your nose looks like this \u2014 [VISUAL: creator tilts face aggressively toward camera at t=1.2s, finger pointing to forehead bumps/pores and nose, extreme close-up framing that forces viewer to examine skin texture]",
+        "type": "problem-identification mirror-moment",
+        "why_it_works": "Uses a rapid deixis ('these, these, or your nose looks like this') with zero visual context given upfront \u2014 the viewer must watch to find out what 'these' are, triggering curiosity-gap retention. Simultaneously functions as an audience self-selection filter: anyone with blackheads or enlarged pores immediately feels called out and personally addressed, spiking stop-scroll rate."
+      },
+      "model": "claude-sonnet-4-6",
+      "pacing_notes": "Extremely tight. 35-second runtime covers hook, problem setup, product intro, application, dwell time (implied fast-cut), removal, result reveal, and CTA \u2014 roughly one new visual beat every 2\u20133 seconds. The disgust-reveal sequence (t=15\u201323s) is the slowest beat, held slightly longer to let the gross-out moment register. CTA is front-loaded with an emotional hook ('I'm pissed') before the link ask, preventing viewer drop-off at the close.",
+      "problem": {
+        "framing": "Inclusive 'we' framing converts a personal insecurity into a shared tribal condition. Sensitive-skin qualifier simultaneously pre-empts skeptics ('it's not just laziness, it's a real constraint') and narrows the in-group to people who feel the product was made specifically for them.",
+        "t_end": 7,
+        "t_start": 3.6,
+        "text": "We can't just put anything on our faces because we have super sensitive skin. [VISUAL: creator shown bare-faced at t=3.6\u20135.9s, visible redness on cheeks and nose, pores visible, framing the skin as both reactive and congested \u2014 the 'us' framing builds instant community around the pain point]"
+      },
+      "raw_claude_response": {
+        "content": [
+          {
+            "caller": {
+              "type": "direct"
+            },
+            "id": "toolu_013LqdfyF8wHx22NB66KFDXs",
+            "input": {
+              "ai_tags": [
+                "mud-mask",
+                "pore-blackhead",
+                "sensitive-skin",
+                "cosmetic-result-demo",
+                "disgust-proof-reveal",
+                "fomo-scarcity-cta",
+                "teen-male-creator",
+                "gen-z-audience",
+                "foryoupage-social-proof",
+                "ugc-style"
+              ],
+              "authenticity_signals": [
+                "Visible skin imperfections (redness, pores, minor blemishes) left unretouched throughout",
+                "DJI clip-on mic clipped to t-shirt signals 'just a regular person with basic gear'",
+                "Bedroom background with personal items (hats, toys) rather than a staged set",
+                "'I'm pissed they put it on sale after I already bought it' \u2014 positions creator as a genuine paying customer, not a gifted partner",
+                "Unscripted 'ew' reactions during mask application and wipe-off feel spontaneous",
+                "Dirty wipe held directly to camera \u2014 physical, unfalsifiable proof of extraction",
+                "'It hasn't even been 10 minutes' \u2014 real-time clock anchoring implies unedited experience"
+              ],
+              "buyer_psychology_levers": [
+                "Loss aversion \u2014 'go fast before they sell out again' frames inaction as losing a deal, not just missing a purchase",
+                "Social proof \u2014 'it's been going viral all over my For You page' outsources credibility to the crowd before the creator has established personal authority",
+                "Disgust-driven efficacy proof \u2014 the extracted debris on the wipe provides concrete, visual evidence of product function that bypasses rational skepticism",
+                "In-group identity signaling \u2014 'we have super sensitive skin' creates tribal belonging, making the product feel like a solution designed specifically for this viewer",
+                "Urgency / artificial scarcity \u2014 sale + sold-out framing compresses decision time and punishes deliberation",
+                "Authority via ingredient name-drop \u2014 citing AHA, BHA, PHA by name implies scientific literacy and elevates perceived product credibility without deep explanation"
+              ],
+              "cta": {
+                "style": "Faux-reluctant scarcity CTA with manufactured FOMO. The 'I'm annoyed the sale happened after I paid full price' framing is a credibility-first move \u2014 it positions the creator as a genuine buyer rather than a paid shill, then immediately weaponizes that credibility to inject urgency via implied stock scarcity ('if they're not sold out', 'before they sell out again'). Pointing the tube directly at the camera at t=32.0s functions as a visual command gesture reinforcing the link-click directive.",
+                "t_end": 35.53,
+                "t_start": 26.36,
+                "text": "I am a little pissed because of course they go on a huge sale right after I get one. If they're not sold out by now, I'll leave the link right down below. So if you still see it, go fast before they sell out again."
+              },
+              "gender_specific_notes": "The \"we can't just put anything on our faces because we have super sensitive skin\" framing is gender-neutral as delivered, and a male creator using a face mask on TikTok carries a mild pattern-interrupt value (men doing skincare still reads as subversive-enough to drive comment engagement). A female creator replicating this video would lose that subtle novelty signal \u2014 to compensate, she could lean harder into the sensitive-skin community angle or add a before/after skin texture comparison to maintain the same stop-scroll weight.",
+              "hook": {
+                "t_end": 3.6,
+                "t_start": 0.02,
+                "text": "If you have these, these, or your nose looks like this \u2014 [VISUAL: creator tilts face aggressively toward camera at t=1.2s, finger pointing to forehead bumps/pores and nose, extreme close-up framing that forces viewer to examine skin texture]",
+                "type": "problem-identification mirror-moment",
+                "why_it_works": "Uses a rapid deixis ('these, these, or your nose looks like this') with zero visual context given upfront \u2014 the viewer must watch to find out what 'these' are, triggering curiosity-gap retention. Simultaneously functions as an audience self-selection filter: anyone with blackheads or enlarged pores immediately feels called out and personally addressed, spiking stop-scroll rate."
+              },
+              "pacing_notes": "Extremely tight. 35-second runtime covers hook, problem setup, product intro, application, dwell time (implied fast-cut), removal, result reveal, and CTA \u2014 roughly one new visual beat every 2\u20133 seconds. The disgust-reveal sequence (t=15\u201323s) is the slowest beat, held slightly longer to let the gross-out moment register. CTA is front-loaded with an emotional hook ('I'm pissed') before the link ask, preventing viewer drop-off at the close.",
+              "problem": {
+                "framing": "Inclusive 'we' framing converts a personal insecurity into a shared tribal condition. Sensitive-skin qualifier simultaneously pre-empts skeptics ('it's not just laziness, it's a real constraint') and narrows the in-group to people who feel the product was made specifically for them.",
+                "t_end": 7,
+                "t_start": 3.6,
+                "text": "We can't just put anything on our faces because we have super sensitive skin. [VISUAL: creator shown bare-faced at t=3.6\u20135.9s, visible redness on cheeks and nose, pores visible, framing the skin as both reactive and congested \u2014 the 'us' framing builds instant community around the pain point]"
+              },
+              "solution": {
+                "t_end": 26.36,
+                "t_start": 7,
+                "text": "Medicube Zero Pore Blackhead Mud Mask \u2014 AHA, BHA, and PHA acids work together to draw out pore congestion in under 10 minutes. Wipes off easily. [VISUAL: blue tube held next to face at t=8.3s during application explanation; mask fully applied across face t=10.7\u201317.8s; wipe-off begins t=20.1s; clean glowing skin visible at t=24.9s; product tube re-shown prominently at t=29.6s and t=34.3s]"
+              },
+              "tonality": "Casual, unpolished, peer-to-peer. Bedroom setting, DJI clip-on mic visible, no professional lighting \u2014 deliberately lo-fi to signal authenticity over production value. Vocal delivery is reactive and spontaneous ('ew', 'let's see', 'look at all that') rather than scripted, mimicking discovery-in-real-time energy.",
+              "twist": {
+                "t_end": 22.5,
+                "t_start": 13,
+                "tactic": "Disgust-loop proof reveal \u2014 the 'ew' verbal reaction combined with the physical debris on the wipe turns the product's mechanism into spectacle. The grossness is the evidence. Viewer cannot look away because disgust triggers an involuntary attention lock, and seeing the extracted gunk provides visceral confirmation of efficacy that no before/after photo could match.",
+                "text": "You can already see what it's getting out. Ew, it hasn't even been 10 minutes. [VISUAL: close-up at t=15.4s shows the blue mud mask partially drying, revealing the pore-pattern texture lifting out of the skin. At t=22.5s, dirty white cloth held to camera showing visible dark debris extracted from pores \u2014 gross-out proof shot.]"
+              },
+              "visual_style_notes": "Shot entirely handheld in portrait mode, single-room, natural + ambient light only. Color palette shifts from warm neutral (skin/bedroom) to the striking pastel blue of the mask mid-video \u2014 the product's color is inherently scroll-stopping and visually distinctive in a feed dominated by skin tones. Close-up framing dominates; the face fills ~80% of the frame throughout, maximizing intimacy and skin-texture visibility. The dirty wipe cut-to-camera at t=22.5s is the most deliberate compositional choice in the video \u2014 it's essentially a hero shot of the product's proof, held in focus against a blurred background."
+            },
+            "name": "submit_breakdown",
+            "type": "tool_use"
+          }
+        ],
+        "id": "msg_011yixv2wBgzzKs9LGbVppgR",
+        "model": "claude-sonnet-4-6",
+        "role": "assistant",
+        "stop_details": null,
+        "stop_reason": "tool_use",
+        "stop_sequence": null,
+        "type": "message",
+        "usage": {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 0,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "inference_geo": "global",
+          "input_tokens": 23018,
+          "output_tokens": 2030,
+          "service_tier": "standard"
+        }
+      },
+      "solution": {
+        "t_end": 26.36,
+        "t_start": 7,
+        "text": "Medicube Zero Pore Blackhead Mud Mask \u2014 AHA, BHA, and PHA acids work together to draw out pore congestion in under 10 minutes. Wipes off easily. [VISUAL: blue tube held next to face at t=8.3s during application explanation; mask fully applied across face t=10.7\u201317.8s; wipe-off begins t=20.1s; clean glowing skin visible at t=24.9s; product tube re-shown prominently at t=29.6s and t=34.3s]"
+      },
+      "tonality": "Casual, unpolished, peer-to-peer. Bedroom setting, DJI clip-on mic visible, no professional lighting \u2014 deliberately lo-fi to signal authenticity over production value. Vocal delivery is reactive and spontaneous ('ew', 'let's see', 'look at all that') rather than scripted, mimicking discovery-in-real-time energy.",
+      "twist": {
+        "t_end": 22.5,
+        "t_start": 13,
+        "tactic": "Disgust-loop proof reveal \u2014 the 'ew' verbal reaction combined with the physical debris on the wipe turns the product's mechanism into spectacle. The grossness is the evidence. Viewer cannot look away because disgust triggers an involuntary attention lock, and seeing the extracted gunk provides visceral confirmation of efficacy that no before/after photo could match.",
+        "text": "You can already see what it's getting out. Ew, it hasn't even been 10 minutes. [VISUAL: close-up at t=15.4s shows the blue mud mask partially drying, revealing the pore-pattern texture lifting out of the skin. At t=22.5s, dirty white cloth held to camera showing visible dark debris extracted from pores \u2014 gross-out proof shot.]"
+      },
+      "video_id": "d21d7f8b-661d-4b9d-abc3-82f1ffa2b618",
+      "visual_style_notes": "Shot entirely handheld in portrait mode, single-room, natural + ambient light only. Color palette shifts from warm neutral (skin/bedroom) to the striking pastel blue of the mask mid-video \u2014 the product's color is inherently scroll-stopping and visually distinctive in a feed dominated by skin tones. Close-up framing dominates; the face fills ~80% of the frame throughout, maximizing intimacy and skin-texture visibility. The dirty wipe cut-to-camera at t=22.5s is the most deliberate compositional choice in the video \u2014 it's essentially a hero shot of the product's proof, held in focus against a blurred background."
+    },
+    {
+      "authenticity_signals": [
+        "Bare-face, no visible foundation or concealer during the entire video \u2014 skin is the demo",
+        "Car setting with natural sunlight; handheld, slightly shaky framing reads as unproduced",
+        "Explicit admission of prior skepticism and resistance to the product ('I did not want to believe')",
+        "Real family member (mom) used as the test subject with before/after photos shown (t=17.6s)",
+        "Mom's result framed as quitting medical-grade syringes \u2014 a high-stakes, specific, falsifiable claim",
+        "AI-generated ingredient explainer text visible on screen at t=36.8s, showing creator researched the ingredient independently",
+        "Self-deprecating financial confession: admits buying multiple units at $40 each during sellouts"
+      ],
+      "buyer_psychology_levers": [
+        "Sunk-cost regret activation: viewer's existing concealer spend is reframed as wasted money, priming them to 'correct' the mistake by switching",
+        "Social proof (multi-tier): celebrity influencer name-drops (Jeffree Star, Mikayla) + peer-level creator testimonial + family member (mom) before/after",
+        "Authority transfer: patented ingredient ('Rebornic Calcium') + brand name ('Dr. Melaxin') lend pseudo-clinical legitimacy without requiring the creator to make medical claims herself",
+        "Category disruption / incumbent replacement: positions the product against concealer (a $60-recurring habit) and cosmetic injectables, making the price feel trivially small by comparison",
+        "Loss aversion (scarcity + urgency): flash sale framing + sellout history means inaction = paying more or missing out entirely",
+        "Identity signaling: Korean skincare superiority framing ('Korean skincare was already light years ahead of us') lets buyers signal savviness and cultural in-group membership",
+        "Ikea effect / self-persuasion: creator's voiced skepticism mirrors the viewer's likely skepticism, so watching her convert feels like the viewer's own reasoning process rather than being sold to"
+      ],
+      "created_at": "2026-05-18T03:55:26.220888+00:00",
+      "cta": {
+        "style": "Urgency-stacked loss-aversion close: combines time-limited price scarcity (flash sale, half off) with inventory scarcity (sells out at full price) and a regret inoculation ('do not be stupid like me') \u2014 three overlapping pressure levers fired simultaneously in the final 8 seconds to force immediate action before the video ends.",
+        "t_end": 63.86,
+        "t_start": 55.68,
+        "text": "Flash sale on TikTok right now \u2014 literally half off. Product sells out even at full price. 'Do not wait.' Creator frames prior full-price purchases ($40/pop, bought multiple during sellouts) as a mistake to avoid repeating."
+      },
+      "gender_specific_notes": "The hook's sunk-cost framing centers on concealer spending \u2014 a purchase behavior that skews heavily female-coded. The comparison anchor (quitting filler injections / 'the syringe') also maps most naturally to a female audience's cosmetic context. A male creator using this exact script would need to swap the concealer-spend regret narrative for a male-legible equivalent (e.g., chronic under-eye fatigue affecting professional appearance, or skincare routine simplification), and replace the filler reference with a more gender-neutral aging-treatment comparison, to maintain the same emotional resonance.",
+      "hook": {
+        "t_end": 8,
+        "t_start": 0.02,
+        "text": "Text overlay reads 'never walking into a Sephora again \ud83d\ude31' while creator speaks directly to camera in a car, bare-faced, opening with: 'if when you put your concealer on you look different you have volume loss and I wish somebody would have told me this before I spent like $60 every couple of months on a new trending concealer'",
+        "type": "sunk-cost shame-into-curiosity flip layered with contrarian retail-abandonment claim",
+        "why_it_works": "The text overlay 'never walking into a Sephora again' is a pattern interrupt targeting anyone who habitually buys makeup there \u2014 it signals the creator has found something that makes a major retail category obsolete. Simultaneously, the spoken line weaponizes the viewer's own concealer-purchase habit as proof of a mistake they're currently making, triggering sunk-cost regret and snapping attention. The bare-face in the car setting reads as raw, unfiltered confession rather than produced ad content, lowering skepticism before the product is even named."
+      },
+      "model": "claude-sonnet-4-6",
+      "pacing_notes": "The video runs at a relentless conversational pace with no silent pauses \u2014 transcript is effectively wall-to-wall speech across all 64 seconds. The persuasive arc is compressed: problem and hook overlap in the first 8 seconds rather than being separated. The product is physically introduced at t=8.0s (two-tone balm stick shown) before it is named verbally at ~t=28.44s, creating a visual curiosity gap. The ingredient-science overlay at t=36.8s provides a brief visual rest while audio continues. The final CTA segment (t=55.68\u201363.86) is the shortest beat (\u22488s) but carries the most urgency words per second. No B-roll cutaways; sustained single-shot talking-head format maintains intimacy and prevents attention drift.",
+      "problem": {
+        "framing": "Misattributed-cause reframe: the problem is not which concealer you pick but that concealer is the wrong category of solution entirely. Shifts the audience's mental model from 'I need a better concealer' to 'I need to address the underlying skin structure' \u2014 a classic category-switch persuasion move that voids all existing alternatives in the viewer's consideration set.",
+        "t_end": 28.44,
+        "t_start": 0.02,
+        "text": "Concealer only masks dark circles, wrinkles, discoloration, and under-eye bags \u2014 it doesn't fix the root cause (volume loss / collagen and elastin decline). The creator describes spending ~$60 every few months cycling through trending concealers and calls her own pre-product under-eyes 'raccoon eyes,' framing repeated concealer purchasing as wasted money on a symptom rather than a cure."
+      },
+      "raw_claude_response": {
+        "content": [
+          {
+            "caller": {
+              "type": "direct"
+            },
+            "id": "toolu_01F74Fo82ewq6fyryWV3ntm9",
+            "input": {
+              "ai_tags": [
+                "under-eye-treatment",
+                "korean-skincare",
+                "dark-circles",
+                "anti-aging-balm",
+                "concealer-replacement",
+                "skeptic-turned-believer",
+                "car-confessional-format",
+                "ugc-style-ad",
+                "female-beauty-audience",
+                "flash-sale-urgency"
+              ],
+              "authenticity_signals": [
+                "Bare-face, no visible foundation or concealer during the entire video \u2014 skin is the demo",
+                "Car setting with natural sunlight; handheld, slightly shaky framing reads as unproduced",
+                "Explicit admission of prior skepticism and resistance to the product ('I did not want to believe')",
+                "Real family member (mom) used as the test subject with before/after photos shown (t=17.6s)",
+                "Mom's result framed as quitting medical-grade syringes \u2014 a high-stakes, specific, falsifiable claim",
+                "AI-generated ingredient explainer text visible on screen at t=36.8s, showing creator researched the ingredient independently",
+                "Self-deprecating financial confession: admits buying multiple units at $40 each during sellouts"
+              ],
+              "buyer_psychology_levers": [
+                "Sunk-cost regret activation: viewer's existing concealer spend is reframed as wasted money, priming them to 'correct' the mistake by switching",
+                "Social proof (multi-tier): celebrity influencer name-drops (Jeffree Star, Mikayla) + peer-level creator testimonial + family member (mom) before/after",
+                "Authority transfer: patented ingredient ('Rebornic Calcium') + brand name ('Dr. Melaxin') lend pseudo-clinical legitimacy without requiring the creator to make medical claims herself",
+                "Category disruption / incumbent replacement: positions the product against concealer (a $60-recurring habit) and cosmetic injectables, making the price feel trivially small by comparison",
+                "Loss aversion (scarcity + urgency): flash sale framing + sellout history means inaction = paying more or missing out entirely",
+                "Identity signaling: Korean skincare superiority framing ('Korean skincare was already light years ahead of us') lets buyers signal savviness and cultural in-group membership",
+                "Ikea effect / self-persuasion: creator's voiced skepticism mirrors the viewer's likely skepticism, so watching her convert feels like the viewer's own reasoning process rather than being sold to"
+              ],
+              "cta": {
+                "style": "Urgency-stacked loss-aversion close: combines time-limited price scarcity (flash sale, half off) with inventory scarcity (sells out at full price) and a regret inoculation ('do not be stupid like me') \u2014 three overlapping pressure levers fired simultaneously in the final 8 seconds to force immediate action before the video ends.",
+                "t_end": 63.86,
+                "t_start": 55.68,
+                "text": "Flash sale on TikTok right now \u2014 literally half off. Product sells out even at full price. 'Do not wait.' Creator frames prior full-price purchases ($40/pop, bought multiple during sellouts) as a mistake to avoid repeating."
+              },
+              "gender_specific_notes": "The hook's sunk-cost framing centers on concealer spending \u2014 a purchase behavior that skews heavily female-coded. The comparison anchor (quitting filler injections / 'the syringe') also maps most naturally to a female audience's cosmetic context. A male creator using this exact script would need to swap the concealer-spend regret narrative for a male-legible equivalent (e.g., chronic under-eye fatigue affecting professional appearance, or skincare routine simplification), and replace the filler reference with a more gender-neutral aging-treatment comparison, to maintain the same emotional resonance.",
+              "hook": {
+                "t_end": 8,
+                "t_start": 0.02,
+                "text": "Text overlay reads 'never walking into a Sephora again \ud83d\ude31' while creator speaks directly to camera in a car, bare-faced, opening with: 'if when you put your concealer on you look different you have volume loss and I wish somebody would have told me this before I spent like $60 every couple of months on a new trending concealer'",
+                "type": "sunk-cost shame-into-curiosity flip layered with contrarian retail-abandonment claim",
+                "why_it_works": "The text overlay 'never walking into a Sephora again' is a pattern interrupt targeting anyone who habitually buys makeup there \u2014 it signals the creator has found something that makes a major retail category obsolete. Simultaneously, the spoken line weaponizes the viewer's own concealer-purchase habit as proof of a mistake they're currently making, triggering sunk-cost regret and snapping attention. The bare-face in the car setting reads as raw, unfiltered confession rather than produced ad content, lowering skepticism before the product is even named."
+              },
+              "pacing_notes": "The video runs at a relentless conversational pace with no silent pauses \u2014 transcript is effectively wall-to-wall speech across all 64 seconds. The persuasive arc is compressed: problem and hook overlap in the first 8 seconds rather than being separated. The product is physically introduced at t=8.0s (two-tone balm stick shown) before it is named verbally at ~t=28.44s, creating a visual curiosity gap. The ingredient-science overlay at t=36.8s provides a brief visual rest while audio continues. The final CTA segment (t=55.68\u201363.86) is the shortest beat (\u22488s) but carries the most urgency words per second. No B-roll cutaways; sustained single-shot talking-head format maintains intimacy and prevents attention drift.",
+              "problem": {
+                "framing": "Misattributed-cause reframe: the problem is not which concealer you pick but that concealer is the wrong category of solution entirely. Shifts the audience's mental model from 'I need a better concealer' to 'I need to address the underlying skin structure' \u2014 a classic category-switch persuasion move that voids all existing alternatives in the viewer's consideration set.",
+                "t_end": 28.44,
+                "t_start": 0.02,
+                "text": "Concealer only masks dark circles, wrinkles, discoloration, and under-eye bags \u2014 it doesn't fix the root cause (volume loss / collagen and elastin decline). The creator describes spending ~$60 every few months cycling through trending concealers and calls her own pre-product under-eyes 'raccoon eyes,' framing repeated concealer purchasing as wasted money on a symptom rather than a cure."
+              },
+              "solution": {
+                "t_end": 55.68,
+                "t_start": 28.44,
+                "text": "Dr. Melaxin Calcium Multi Balm, featuring the patented ingredient 'Rebornic Calcium,' which the creator says fills in harsh dark circles by replenishing lost elastin and collagen in the under-eye area. Usage: once a night. Result claim: skin looks like a skin tint is being worn with no makeup. Creator states she quit concealer entirely and her mom quit filler injections ('the syringe') after two weeks. Visually, the purple stick balm is shown repeatedly being held up to the under-eye area (frames t=27.2s, t=56.1s, t=62.5s) with the Dr. Melaxin branding visible on the label."
+              },
+              "tonality": "Confessional and conspiratorial \u2014 the creator speaks in the rapid, unfiltered cadence of someone sharing a secret discovery with a close friend. Tone shifts from self-deprecating regret (concealer money wasted) to evangelical conviction (threw the concealers away). No formal or clinical register; credibility is built through informality, expletives ('freaking'), and visible product interaction rather than scripted polish.",
+              "twist": {
+                "t_end": 28.44,
+                "t_start": 11.2,
+                "tactic": "Skeptic-turned-believer credibility transfer: by foregrounding personal resistance and reluctance, the creator neutralizes the 'this is an ad' objection before it forms. The third-party proof (mom's before/after shown at t=17.6s) functions as a non-sponsored testimonial embedded inside a sponsored testimonial, compounding social proof across two generations.",
+                "text": "Creator admits she actively resisted believing in the product ('I really did not want to like this\u2026 I did not want to believe') and name-drops Jeffree Star and Mikayla (high-follower beauty influencers) as prior endorsers she dismissed \u2014 then reveals she tested it on her mom, who visibly transformed in two weeks. At t=14.4s, thumbnails of those influencers' posts appear on screen as visual receipts. The creator's own skepticism is deployed as the trust-building device."
+              },
+              "visual_style_notes": "Single-shot vertical selfie video, filmed in a parked Jeep with natural sunlight providing soft, unflattering-but-honest lighting that supports the authenticity framing. Creator is bare-faced throughout, making her under-eye area the passive live demo. The Dr. Melaxin Calcium Multi Balm (purple/white stick, roughly lip-balm sized) is the only prop and appears in almost every frame from t=8.0s onward \u2014 held up to the under-eye (t=27.2s), applied to lips as a balm demonstration (t=40.0s, t=49.7s), thrust toward camera lens in a product-detail close-up (t=56.1s, t=62.5s). Influencer thumbnail collage (Jeffree Star, Mikayla, Cardi B 'Botox Balm' reference) appears as a layered graphic at t=14.4s, breaking the single-shot monotony at a key credibility moment. Persistent text overlay 'never walking into a Sephora again \ud83d\ude31' anchors the contrarian hook for any viewer who joins mid-scroll."
+            },
+            "name": "submit_breakdown",
+            "type": "tool_use"
+          }
+        ],
+        "id": "msg_011FVy4SkvfRx8suhk3V6Ks2",
+        "model": "claude-sonnet-4-6",
+        "role": "assistant",
+        "stop_details": null,
+        "stop_reason": "tool_use",
+        "stop_sequence": null,
+        "type": "message",
+        "usage": {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 0,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "inference_geo": "global",
+          "input_tokens": 30051,
+          "output_tokens": 2436,
+          "service_tier": "standard"
+        }
+      },
+      "solution": {
+        "t_end": 55.68,
+        "t_start": 28.44,
+        "text": "Dr. Melaxin Calcium Multi Balm, featuring the patented ingredient 'Rebornic Calcium,' which the creator says fills in harsh dark circles by replenishing lost elastin and collagen in the under-eye area. Usage: once a night. Result claim: skin looks like a skin tint is being worn with no makeup. Creator states she quit concealer entirely and her mom quit filler injections ('the syringe') after two weeks. Visually, the purple stick balm is shown repeatedly being held up to the under-eye area (frames t=27.2s, t=56.1s, t=62.5s) with the Dr. Melaxin branding visible on the label."
+      },
+      "tonality": "Confessional and conspiratorial \u2014 the creator speaks in the rapid, unfiltered cadence of someone sharing a secret discovery with a close friend. Tone shifts from self-deprecating regret (concealer money wasted) to evangelical conviction (threw the concealers away). No formal or clinical register; credibility is built through informality, expletives ('freaking'), and visible product interaction rather than scripted polish.",
+      "twist": {
+        "t_end": 28.44,
+        "t_start": 11.2,
+        "tactic": "Skeptic-turned-believer credibility transfer: by foregrounding personal resistance and reluctance, the creator neutralizes the 'this is an ad' objection before it forms. The third-party proof (mom's before/after shown at t=17.6s) functions as a non-sponsored testimonial embedded inside a sponsored testimonial, compounding social proof across two generations.",
+        "text": "Creator admits she actively resisted believing in the product ('I really did not want to like this\u2026 I did not want to believe') and name-drops Jeffree Star and Mikayla (high-follower beauty influencers) as prior endorsers she dismissed \u2014 then reveals she tested it on her mom, who visibly transformed in two weeks. At t=14.4s, thumbnails of those influencers' posts appear on screen as visual receipts. The creator's own skepticism is deployed as the trust-building device."
+      },
+      "video_id": "d5240f30-86c6-4dd5-882b-b59b04b90db9",
+      "visual_style_notes": "Single-shot vertical selfie video, filmed in a parked Jeep with natural sunlight providing soft, unflattering-but-honest lighting that supports the authenticity framing. Creator is bare-faced throughout, making her under-eye area the passive live demo. The Dr. Melaxin Calcium Multi Balm (purple/white stick, roughly lip-balm sized) is the only prop and appears in almost every frame from t=8.0s onward \u2014 held up to the under-eye (t=27.2s), applied to lips as a balm demonstration (t=40.0s, t=49.7s), thrust toward camera lens in a product-detail close-up (t=56.1s, t=62.5s). Influencer thumbnail collage (Jeffree Star, Mikayla, Cardi B 'Botox Balm' reference) appears as a layered graphic at t=14.4s, breaking the single-shot monotony at a key credibility moment. Persistent text overlay 'never walking into a Sephora again \ud83d\ude31' anchors the contrarian hook for any viewer who joins mid-scroll."
+    }
+  ],
+  "corpus_chunks": [
+    {
+      "chunk_index": 1,
+      "chunk_kind": "transcript",
+      "created_at": "2026-05-17T05:35:45.165594+00:00",
+      "id": "fa277a3b-618d-465d-9ede-0f8f251b9576",
+      "metadata": {
+        "creator_handle": null,
+        "niche_tag": null,
+        "view_count": null
+      },
+      "source_type": "video",
+      "t_end": 67,
+      "t_start": 59.36,
+      "text": "what it looks like run it was literally sold out for two freaking months i had to wait forever if you can see the link they're also on flash sale right now hurry",
+      "video_id": "5d44a1de-53a1-4af4-862f-fdfee90c5de2"
+    },
+    {
+      "chunk_index": 0,
+      "chunk_kind": "breakdown_summary",
+      "created_at": "2026-05-17T05:35:45.165594+00:00",
+      "id": "5371dc6f-600b-427b-8ae7-8632445bf08f",
+      "metadata": {
+        "creator_handle": null,
+        "niche_tag": null,
+        "view_count": null
+      },
+      "source_type": "video",
+      "t_end": null,
+      "t_start": null,
+      "text": "hook: Pinned comment overlay reads 'This saved me like thousands of dollars' while the creator sits in a car with visibly plumped lips, immediately implying filler-level results without the filler price tag. The visual result IS the hook \u2014 massively plump lips on screen before a single word is spoken, paired with a third-party cost-savings claim.\nproblem: Implicit problem established visually and verbally: other lip plumpers only make lips red and itchy without real plumping \u2014 they're performative irritants, not actual volume solutions. The underlying desire (filler-sized lips without a clinic visit or the cost) is surfaced by the 'thousands of dollars' comment and the filler comparison ('looks like I just left and got filler').\ntwist: The mechanism reveal: this is a *Korean spicule* lip plumper \u2014 tiny physical spicules penetrate the lip tissue and rush blood flow to the area, creating structural plump that stays even after wiping the product off. This separates it mechanistically from every tingling gloss the viewer has tried. Reinforced at t=42s with a close-up product hold showing the clear serum tube, and at t=45s with an embedded stitch/reaction clip of a bearded male creator also demoing the product (cross-gender social proof broadening the believability pool).\nsolution: Dr. Melaxin BP Spicule Plumping Lip Shot shown producing filler-comparable results: time-lapse application demo in the car (t=5\u201322s), immediate post-application reveal with visibly swollen, glossy lips (t=25\u201338s), product bottle close-up (t=42s), 2-hour update shot outdoors with lips still dramatically full (t=52\u201358s), and a final close-up fingertip press on the bottom lip showing the plump is real and not just gloss (t=58.8s). Duration claim anchored: 'still freaking huge' at 2 hours, realistic ceiling set at 4 hours despite brand claims of 8.\ncta: It was literally sold out for two freaking months \u2014 I had to wait forever. If you can see the link, they're also on flash sale right now, hurry.\ntonality: Casual, conspiratorial best-friend energy \u2014 the creator speaks like she's sharing a personal discovery, not pitching. Enthusiastic but self-correcting (she volunteers that it lasts 4 hours, not the brand-claimed 8), which paradoxically increases credibility. Mild profanity ('freaking huge,' 'freaking months') reinforces authenticity and keeps the tone relatable rather than advertorial.",
+      "video_id": "5d44a1de-53a1-4af4-862f-fdfee90c5de2"
+    },
+    {
+      "chunk_index": 0,
+      "chunk_kind": "buyer_psych_levers",
+      "created_at": "2026-05-17T05:35:45.165594+00:00",
+      "id": "52152914-c186-4938-b6ec-7b4989ef982b",
+      "metadata": {
+        "creator_handle": null,
+        "niche_tag": null,
+        "view_count": null
+      },
+      "source_type": "video",
+      "t_end": null,
+      "t_start": null,
+      "text": "Loss aversion \u2014 'This saved me like thousands of dollars' primes the viewer to feel they are already losing money by not owning this product\nSocial proof \u2014 pinned comment from another user, embedded male-creator reaction clip, and sold-out-for-two-months demand signal all layer third-party validation\nAuthority via mechanism science \u2014 spicule micro-delivery explanation elevates the product above 'just a gloss' and gives the viewer a scientific rationale to justify the purchase\nScarcity \u2014 two-month sellout history positions stock as perpetually at risk\nUrgency \u2014 flash sale time pressure at the CTA compresses decision time\nAspirational identity signaling \u2014 'looks like I just left and got filler' anchors the result to a high-status, expensive aesthetic outcome, selling the identity of someone who 'has filler lips' without the stigma or cost of actual filler\nObjection pre-emption (category indictment) \u2014 dismissing all competing plumpers as red/itchy removes the viewer's next-best alternative, collapsing the comparison set",
+      "video_id": "5d44a1de-53a1-4af4-862f-fdfee90c5de2"
+    },
+    {
+      "chunk_index": 0,
+      "chunk_kind": "pacing_notes",
+      "created_at": "2026-05-17T05:35:45.165594+00:00",
+      "id": "6a14a0d3-c8b3-4146-98fa-034cee528b09",
+      "metadata": {
+        "creator_handle": null,
+        "niche_tag": null,
+        "view_count": null
+      },
+      "source_type": "video",
+      "t_end": null,
+      "t_start": null,
+      "text": "Three-act compression within 67 seconds: Act 1 (0\u201322s) is hook + time-lapse application with countdown text ('time lapse begins in 1') building suspense; Act 2 (22\u201348s) is the immediate result reveal + mechanism explanation + product identity reveal, the longest and most info-dense section; Act 3 (48\u201367s) is 2-hour durability proof + urgency CTA. The on-screen text 'skip to 0:24 for results' is a retention hack \u2014 it invites skippers to jump forward rather than scroll away, keeping view-duration metrics healthy while serving impatient viewers.",
+      "video_id": "5d44a1de-53a1-4af4-862f-fdfee90c5de2"
+    },
+    {
+      "chunk_index": 0,
+      "chunk_kind": "visual_style_notes",
+      "created_at": "2026-05-17T05:35:45.165594+00:00",
+      "id": "f19bd256-7b40-4340-898a-1f661eb145b8",
+      "metadata": {
+        "creator_handle": null,
+        "niche_tag": null,
+        "view_count": null
+      },
+      "source_type": "video",
+      "t_end": null,
+      "t_start": null,
+      "text": "Entirely selfie-cam, no production crew. Two locations: car interior (hook through mechanism section) and outdoor residential setting (2-hour update), both shot in natural daylight. The casual lo-fi aesthetic is load-bearing \u2014 it signals 'real person, real result' rather than a brand shoot. Persistent on-screen comment overlay ('This saved me like thousands of dollars') is never removed across the full video, keeping the social-proof frame active in every frame. Lips are centered and fill significant screen real estate in most shots, functioning as a continuous before/after comparison for the viewer as the video progresses.",
+      "video_id": "5d44a1de-53a1-4af4-862f-fdfee90c5de2"
+    },
+    {
+      "chunk_index": 0,
+      "chunk_kind": "transcript",
+      "created_at": "2026-05-17T05:35:45.165594+00:00",
+      "id": "d5beda41-6014-4c49-8338-3b01ee9e3941",
+      "metadata": {
+        "creator_handle": null,
+        "niche_tag": null,
+        "view_count": null
+      },
+      "source_type": "video",
+      "t_end": 59.36,
+      "t_start": 0,
+      "text": "NO N banget AACITA hair Over the stands So, it can't be incredible 4minutes oh look at how good they look it literally looks like i just left and got filler and the best part is you can wipe it off and the plump will stay there because it's not just going to make your lips red and itchy like other lip plumpers do this is a korean spicule lip plumper so it's basically going to fill your lips with a bunch of tiny spicules rushes the blood flow to your lips and they turn update it's been two hours still freaking huge i've seen people say eight hours but it really lasts like four hours this is",
+      "video_id": "5d44a1de-53a1-4af4-862f-fdfee90c5de2"
+    },
+    {
+      "chunk_index": 0,
+      "chunk_kind": "gender_specific_notes",
+      "created_at": "2026-05-17T05:35:45.165594+00:00",
+      "id": "c7dbbb90-e7da-417f-ac9f-9804bfa5e68f",
+      "metadata": {
+        "creator_handle": null,
+        "niche_tag": null,
+        "view_count": null
+      },
+      "source_type": "video",
+      "t_end": null,
+      "t_start": null,
+      "text": "The hook's cost-savings framing ('saved me like thousands of dollars') implicitly references lip filler, a procedure more culturally coded as a female beauty investment. The creator's female presentation makes the filler-alternative positioning land naturally. A male creator replicating this video would need to either lean into the novelty angle (the embedded male stitch clip at t=45s shows this CAN work \u2014 his plump result reads as shocking/funny, which is its own hook) or reframe the savings comparison away from filler and toward a unisex grooming outcome. The 'filler' aspiration language in the solution beat is the one element that needs adaptation for a male creator.",
+      "video_id": "5d44a1de-53a1-4af4-862f-fdfee90c5de2"
+    },
+    {
+      "chunk_index": 0,
+      "chunk_kind": "transcript",
+      "created_at": "2026-05-17T05:37:04.950945+00:00",
+      "id": "3cf79899-439d-4acd-85b0-df8997330eea",
+      "metadata": {
+        "creator_handle": null,
+        "niche_tag": null,
+        "view_count": null
+      },
+      "source_type": "video",
+      "t_end": 26.36,
+      "t_start": 0.02,
+      "text": "If you have these, these, or your nose looks like this, we can't just put anything on our faces because we have super sensitive skin. So I started using MetaCube's new mud mask because it's been going viral all over my For You page. You wanna put it all over your face so that A, B, and PHA can suck everything out of your pores. Ew, you can already see what it's getting out. It hasn't even been 10 minutes. That's when it gets really crazy. All right, time's up, let's see. It wipes off super easy. Ew, look at all that. And just look at my skin, it's actually glowing. This is the result, my",
+      "video_id": "d21d7f8b-661d-4b9d-abc3-82f1ffa2b618"
+    },
+    {
+      "chunk_index": 1,
+      "chunk_kind": "transcript",
+      "created_at": "2026-05-17T05:37:04.950945+00:00",
+      "id": "902bbdcb-86ba-48b0-9ee4-68c89579de06",
+      "metadata": {
+        "creator_handle": null,
+        "niche_tag": null,
+        "view_count": null
+      },
+      "source_type": "video",
+      "t_end": 35.86,
+      "t_start": 26.36,
+      "text": "pores are literally gone. But I am a little pissed because of course they go on a huge sale right after I get one. If they're not sold out by now, I'll leave the link right down below. So if you still see it, go fast before they sell out again.",
+      "video_id": "d21d7f8b-661d-4b9d-abc3-82f1ffa2b618"
+    },
+    {
+      "chunk_index": 0,
+      "chunk_kind": "breakdown_summary",
+      "created_at": "2026-05-17T05:37:04.950945+00:00",
+      "id": "f61c275f-d054-4a0c-b408-ed7a84f4ff38",
+      "metadata": {
+        "creator_handle": null,
+        "niche_tag": null,
+        "view_count": null
+      },
+      "source_type": "video",
+      "t_end": null,
+      "t_start": null,
+      "text": "hook: If you have these, these, or your nose looks like this \u2014 [VISUAL: creator tilts face aggressively toward camera at t=1.2s, finger pointing to forehead bumps/pores and nose, extreme close-up framing that forces viewer to examine skin texture]\nproblem: We can't just put anything on our faces because we have super sensitive skin. [VISUAL: creator shown bare-faced at t=3.6\u20135.9s, visible redness on cheeks and nose, pores visible, framing the skin as both reactive and congested \u2014 the 'us' framing builds instant community around the pain point]\ntwist: You can already see what it's getting out. Ew, it hasn't even been 10 minutes. [VISUAL: close-up at t=15.4s shows the blue mud mask partially drying, revealing the pore-pattern texture lifting out of the skin. At t=22.5s, dirty white cloth held to camera showing visible dark debris extracted from pores \u2014 gross-out proof shot.]\nsolution: Medicube Zero Pore Blackhead Mud Mask \u2014 AHA, BHA, and PHA acids work together to draw out pore congestion in under 10 minutes. Wipes off easily. [VISUAL: blue tube held next to face at t=8.3s during application explanation; mask fully applied across face t=10.7\u201317.8s; wipe-off begins t=20.1s; clean glowing skin visible at t=24.9s; product tube re-shown prominently at t=29.6s and t=34.3s]\ncta: I am a little pissed because of course they go on a huge sale right after I get one. If they're not sold out by now, I'll leave the link right down below. So if you still see it, go fast before they sell out again.\ntonality: Casual, unpolished, peer-to-peer. Bedroom setting, DJI clip-on mic visible, no professional lighting \u2014 deliberately lo-fi to signal authenticity over production value. Vocal delivery is reactive and spontaneous ('ew', 'let's see', 'look at all that') rather than scripted, mimicking discovery-in-real-time energy.",
+      "video_id": "d21d7f8b-661d-4b9d-abc3-82f1ffa2b618"
+    },
+    {
+      "chunk_index": 0,
+      "chunk_kind": "gender_specific_notes",
+      "created_at": "2026-05-17T05:37:04.950945+00:00",
+      "id": "75f8a2b8-bb63-493e-812f-794aaf2113ff",
+      "metadata": {
+        "creator_handle": null,
+        "niche_tag": null,
+        "view_count": null
+      },
+      "source_type": "video",
+      "t_end": null,
+      "t_start": null,
+      "text": "The \"we can't just put anything on our faces because we have super sensitive skin\" framing is gender-neutral as delivered, and a male creator using a face mask on TikTok carries a mild pattern-interrupt value (men doing skincare still reads as subversive-enough to drive comment engagement). A female creator replicating this video would lose that subtle novelty signal \u2014 to compensate, she could lean harder into the sensitive-skin community angle or add a before/after skin texture comparison to maintain the same stop-scroll weight.",
+      "video_id": "d21d7f8b-661d-4b9d-abc3-82f1ffa2b618"
+    },
+    {
+      "chunk_index": 0,
+      "chunk_kind": "buyer_psych_levers",
+      "created_at": "2026-05-17T05:37:04.950945+00:00",
+      "id": "46de534d-c25b-458d-89f6-8eab9eb9b4cd",
+      "metadata": {
+        "creator_handle": null,
+        "niche_tag": null,
+        "view_count": null
+      },
+      "source_type": "video",
+      "t_end": null,
+      "t_start": null,
+      "text": "Loss aversion \u2014 'go fast before they sell out again' frames inaction as losing a deal, not just missing a purchase\nSocial proof \u2014 'it's been going viral all over my For You page' outsources credibility to the crowd before the creator has established personal authority\nDisgust-driven efficacy proof \u2014 the extracted debris on the wipe provides concrete, visual evidence of product function that bypasses rational skepticism\nIn-group identity signaling \u2014 'we have super sensitive skin' creates tribal belonging, making the product feel like a solution designed specifically for this viewer\nUrgency / artificial scarcity \u2014 sale + sold-out framing compresses decision time and punishes deliberation\nAuthority via ingredient name-drop \u2014 citing AHA, BHA, PHA by name implies scientific literacy and elevates perceived product credibility without deep explanation",
+      "video_id": "d21d7f8b-661d-4b9d-abc3-82f1ffa2b618"
+    },
+    {
+      "chunk_index": 0,
+      "chunk_kind": "pacing_notes",
+      "created_at": "2026-05-17T05:37:04.950945+00:00",
+      "id": "9fbcce38-3305-489f-bb0e-2386e76d0d03",
+      "metadata": {
+        "creator_handle": null,
+        "niche_tag": null,
+        "view_count": null
+      },
+      "source_type": "video",
+      "t_end": null,
+      "t_start": null,
+      "text": "Extremely tight. 35-second runtime covers hook, problem setup, product intro, application, dwell time (implied fast-cut), removal, result reveal, and CTA \u2014 roughly one new visual beat every 2\u20133 seconds. The disgust-reveal sequence (t=15\u201323s) is the slowest beat, held slightly longer to let the gross-out moment register. CTA is front-loaded with an emotional hook ('I'm pissed') before the link ask, preventing viewer drop-off at the close.",
+      "video_id": "d21d7f8b-661d-4b9d-abc3-82f1ffa2b618"
+    },
+    {
+      "chunk_index": 0,
+      "chunk_kind": "visual_style_notes",
+      "created_at": "2026-05-17T05:37:04.950945+00:00",
+      "id": "a3b1b99b-4ed5-453b-801c-b21b23f24850",
+      "metadata": {
+        "creator_handle": null,
+        "niche_tag": null,
+        "view_count": null
+      },
+      "source_type": "video",
+      "t_end": null,
+      "t_start": null,
+      "text": "Shot entirely handheld in portrait mode, single-room, natural + ambient light only. Color palette shifts from warm neutral (skin/bedroom) to the striking pastel blue of the mask mid-video \u2014 the product's color is inherently scroll-stopping and visually distinctive in a feed dominated by skin tones. Close-up framing dominates; the face fills ~80% of the frame throughout, maximizing intimacy and skin-texture visibility. The dirty wipe cut-to-camera at t=22.5s is the most deliberate compositional choice in the video \u2014 it's essentially a hero shot of the product's proof, held in focus against a blurred background.",
+      "video_id": "d21d7f8b-661d-4b9d-abc3-82f1ffa2b618"
+    },
+    {
+      "chunk_index": 0,
+      "chunk_kind": "transcript",
+      "created_at": "2026-05-18T03:55:28.728475+00:00",
+      "id": "97f6254f-8aab-4524-abdf-a3ed15ce807e",
+      "metadata": {
+        "creator_handle": null,
+        "niche_tag": null,
+        "view_count": null
+      },
+      "source_type": "video",
+      "t_end": 28.44,
+      "t_start": 0.02,
+      "text": "if when you put your concealer on you look different you have volume loss and i wish somebody would have told me this before i spent like 60 every couple of months on a new trending concealer and i really did not want to like this i know jeffree star posted about it mikaela posted about it i did not want to believe until i tried it on my mom and she went from this to that in two weeks like wrinkles discoloration eye bags who and that's what my raccoon eyes used to look like i literally like i can't even recognize myself anymore i threw my freaking concealers away as if korean skincare wasn't",
+      "video_id": "d5240f30-86c6-4dd5-882b-b59b04b90db9"
+    },
+    {
+      "chunk_index": 1,
+      "chunk_kind": "transcript",
+      "created_at": "2026-05-18T03:55:28.728475+00:00",
+      "id": "2fc205d1-a152-4132-a49e-453f34053133",
+      "metadata": {
+        "creator_handle": null,
+        "niche_tag": null,
+        "view_count": null
+      },
+      "source_type": "video",
+      "t_end": 55.68,
+      "t_start": 28.44,
+      "text": "already light years ahead of us dr millexon patented a skincare ingredient that fills in your harsh dark circle under eye that ingredient is called reborn in calcium you naturally lose elastin and collagen and your under eyes is one of the first places it starts to go so literally slathering this stuff on once a night is the reason why my mom quit the syringe and i quit freaking concealer like it's actually insane it literally looks like i'm wearing a skin tint right now do not be stupid like me i literally paid like 40 bucks a pop for a bunch of these when they were selling out thinking that",
+      "video_id": "d5240f30-86c6-4dd5-882b-b59b04b90db9"
+    },
+    {
+      "chunk_index": 2,
+      "chunk_kind": "transcript",
+      "created_at": "2026-05-18T03:55:28.728475+00:00",
+      "id": "81b676c4-2c0b-4912-8fc3-691eaecc5637",
+      "metadata": {
+        "creator_handle": null,
+        "niche_tag": null,
+        "view_count": null
+      },
+      "source_type": "video",
+      "t_end": 63.86,
+      "t_start": 55.68,
+      "text": "that was the best time to grab them but right now they're running a flash sale on tiktok they're literally like half off right now i would freaking run because these even sell out at full price do not wait",
+      "video_id": "d5240f30-86c6-4dd5-882b-b59b04b90db9"
+    },
+    {
+      "chunk_index": 0,
+      "chunk_kind": "breakdown_summary",
+      "created_at": "2026-05-18T03:55:28.728475+00:00",
+      "id": "9c18cd6e-42c3-4e1f-a18b-628d0610cafb",
+      "metadata": {
+        "creator_handle": null,
+        "niche_tag": null,
+        "view_count": null
+      },
+      "source_type": "video",
+      "t_end": null,
+      "t_start": null,
+      "text": "hook: Text overlay reads 'never walking into a Sephora again \ud83d\ude31' while creator speaks directly to camera in a car, bare-faced, opening with: 'if when you put your concealer on you look different you have volume loss and I wish somebody would have told me this before I spent like $60 every couple of months on a new trending concealer'\nproblem: Concealer only masks dark circles, wrinkles, discoloration, and under-eye bags \u2014 it doesn't fix the root cause (volume loss / collagen and elastin decline). The creator describes spending ~$60 every few months cycling through trending concealers and calls her own pre-product under-eyes 'raccoon eyes,' framing repeated concealer purchasing as wasted money on a symptom rather than a cure.\ntwist: Creator admits she actively resisted believing in the product ('I really did not want to like this\u2026 I did not want to believe') and name-drops Jeffree Star and Mikayla (high-follower beauty influencers) as prior endorsers she dismissed \u2014 then reveals she tested it on her mom, who visibly transformed in two weeks. At t=14.4s, thumbnails of those influencers' posts appear on screen as visual receipts. The creator's own skepticism is deployed as the trust-building device.\nsolution: Dr. Melaxin Calcium Multi Balm, featuring the patented ingredient 'Rebornic Calcium,' which the creator says fills in harsh dark circles by replenishing lost elastin and collagen in the under-eye area. Usage: once a night. Result claim: skin looks like a skin tint is being worn with no makeup. Creator states she quit concealer entirely and her mom quit filler injections ('the syringe') after two weeks. Visually, the purple stick balm is shown repeatedly being held up to the under-eye area (frames t=27.2s, t=56.1s, t=62.5s) with the Dr. Melaxin branding visible on the label.\ncta: Flash sale on TikTok right now \u2014 literally half off. Product sells out even at full price. 'Do not wait.' Creator frames prior full-price purchases ($40/pop, bought multiple during sellouts) as a mistake to avoid repeating.\ntonality: Confessional and conspiratorial \u2014 the creator speaks in the rapid, unfiltered cadence of someone sharing a secret discovery with a close friend. Tone shifts from self-deprecating regret (concealer money wasted) to evangelical conviction (threw the concealers away). No formal or clinical register; credibility is built through informality, expletives ('freaking'), and visible product interaction rather than scripted polish.",
+      "video_id": "d5240f30-86c6-4dd5-882b-b59b04b90db9"
+    },
+    {
+      "chunk_index": 0,
+      "chunk_kind": "gender_specific_notes",
+      "created_at": "2026-05-18T03:55:28.728475+00:00",
+      "id": "20ecec98-46f3-488a-b7b9-5f71016f92f5",
+      "metadata": {
+        "creator_handle": null,
+        "niche_tag": null,
+        "view_count": null
+      },
+      "source_type": "video",
+      "t_end": null,
+      "t_start": null,
+      "text": "The hook's sunk-cost framing centers on concealer spending \u2014 a purchase behavior that skews heavily female-coded. The comparison anchor (quitting filler injections / 'the syringe') also maps most naturally to a female audience's cosmetic context. A male creator using this exact script would need to swap the concealer-spend regret narrative for a male-legible equivalent (e.g., chronic under-eye fatigue affecting professional appearance, or skincare routine simplification), and replace the filler reference with a more gender-neutral aging-treatment comparison, to maintain the same emotional resonance.",
+      "video_id": "d5240f30-86c6-4dd5-882b-b59b04b90db9"
+    },
+    {
+      "chunk_index": 0,
+      "chunk_kind": "buyer_psych_levers",
+      "created_at": "2026-05-18T03:55:28.728475+00:00",
+      "id": "231b5bae-28a3-4d7b-acde-2ea539e46ffe",
+      "metadata": {
+        "creator_handle": null,
+        "niche_tag": null,
+        "view_count": null
+      },
+      "source_type": "video",
+      "t_end": null,
+      "t_start": null,
+      "text": "Sunk-cost regret activation: viewer's existing concealer spend is reframed as wasted money, priming them to 'correct' the mistake by switching\nSocial proof (multi-tier): celebrity influencer name-drops (Jeffree Star, Mikayla) + peer-level creator testimonial + family member (mom) before/after\nAuthority transfer: patented ingredient ('Rebornic Calcium') + brand name ('Dr. Melaxin') lend pseudo-clinical legitimacy without requiring the creator to make medical claims herself\nCategory disruption / incumbent replacement: positions the product against concealer (a $60-recurring habit) and cosmetic injectables, making the price feel trivially small by comparison\nLoss aversion (scarcity + urgency): flash sale framing + sellout history means inaction = paying more or missing out entirely\nIdentity signaling: Korean skincare superiority framing ('Korean skincare was already light years ahead of us') lets buyers signal savviness and cultural in-group membership\nIkea effect / self-persuasion: creator's voiced skepticism mirrors the viewer's likely skepticism, so watching her convert feels like the viewer's own reasoning process rather than being sold to",
+      "video_id": "d5240f30-86c6-4dd5-882b-b59b04b90db9"
+    },
+    {
+      "chunk_index": 0,
+      "chunk_kind": "pacing_notes",
+      "created_at": "2026-05-18T03:55:28.728475+00:00",
+      "id": "e6189214-cd22-4fc7-8330-a1d0d6b73f9e",
+      "metadata": {
+        "creator_handle": null,
+        "niche_tag": null,
+        "view_count": null
+      },
+      "source_type": "video",
+      "t_end": null,
+      "t_start": null,
+      "text": "The video runs at a relentless conversational pace with no silent pauses \u2014 transcript is effectively wall-to-wall speech across all 64 seconds. The persuasive arc is compressed: problem and hook overlap in the first 8 seconds rather than being separated. The product is physically introduced at t=8.0s (two-tone balm stick shown) before it is named verbally at ~t=28.44s, creating a visual curiosity gap. The ingredient-science overlay at t=36.8s provides a brief visual rest while audio continues. The final CTA segment (t=55.68\u201363.86) is the shortest beat (\u22488s) but carries the most urgency words per second. No B-roll cutaways; sustained single-shot talking-head format maintains intimacy and prevents attention drift.",
+      "video_id": "d5240f30-86c6-4dd5-882b-b59b04b90db9"
+    },
+    {
+      "chunk_index": 0,
+      "chunk_kind": "visual_style_notes",
+      "created_at": "2026-05-18T03:55:28.728475+00:00",
+      "id": "af1c7bfc-525e-4267-b8a6-77562fe38f7d",
+      "metadata": {
+        "creator_handle": null,
+        "niche_tag": null,
+        "view_count": null
+      },
+      "source_type": "video",
+      "t_end": null,
+      "t_start": null,
+      "text": "Single-shot vertical selfie video, filmed in a parked Jeep with natural sunlight providing soft, unflattering-but-honest lighting that supports the authenticity framing. Creator is bare-faced throughout, making her under-eye area the passive live demo. The Dr. Melaxin Calcium Multi Balm (purple/white stick, roughly lip-balm sized) is the only prop and appears in almost every frame from t=8.0s onward \u2014 held up to the under-eye (t=27.2s), applied to lips as a balm demonstration (t=40.0s, t=49.7s), thrust toward camera lens in a product-detail close-up (t=56.1s, t=62.5s). Influencer thumbnail collage (Jeffree Star, Mikayla, Cardi B 'Botox Balm' reference) appears as a layered graphic at t=14.4s, breaking the single-shot monotony at a key credibility moment. Persistent text overlay 'never walking into a Sephora again \ud83d\ude31' anchors the contrarian hook for any viewer who joins mid-scroll.",
+      "video_id": "d5240f30-86c6-4dd5-882b-b59b04b90db9"
+    }
+  ],
+  "dumped_at": "2026-05-18T05:56:27.831063+00:00",
+  "reason": "pre-0010-brain-quality backfill \u2014 durable insurance dump (no embeddings; regenerate from text)",
+  "video_ids": [
+    "d21d7f8b-661d-4b9d-abc3-82f1ffa2b618",
+    "5d44a1de-53a1-4af4-862f-fdfee90c5de2",
+    "d5240f30-86c6-4dd5-882b-b59b04b90db9"
+  ]
+}

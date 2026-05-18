@@ -20,12 +20,20 @@ export type VideoMetadataFields = {
   creator_gender: Gender;
   user_notes: string | null;
   ai_tags: string[];
+  product_category: string | null;
+  active_ingredients: string[];
+  function_claims: string[];
+  gmv_usd: number | null;
+  items_sold: number | null;
 };
 
 export type Suggestions = {
   niche_tags: string[];
   brands: string[];
   products: string[];
+  product_categories: string[];
+  active_ingredients: string[];
+  function_claims: string[];
 };
 
 export function EditableMetadata({
@@ -42,6 +50,9 @@ export function EditableMetadata({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<VideoMetadataFields>(initial);
+  // Arrays render as comma-separated strings in the UI; normalized server-side.
+  const [ingredientsInput, setIngredientsInput] = useState(initial.active_ingredients.join(", "));
+  const [claimsInput, setClaimsInput] = useState(initial.function_claims.join(", "));
 
   const onSave = async () => {
     setSaving(true);
@@ -59,6 +70,11 @@ export function EditableMetadata({
           product_name: form.product_name,
           creator_gender: form.creator_gender,
           user_notes: form.user_notes,
+          product_category: form.product_category,
+          active_ingredients: ingredientsInput,
+          function_claims: claimsInput,
+          gmv_usd: form.gmv_usd,
+          items_sold: form.items_sold,
         }),
       });
       if (!res.ok) {
@@ -76,6 +92,8 @@ export function EditableMetadata({
 
   const onCancel = () => {
     setForm(initial);
+    setIngredientsInput(initial.active_ingredients.join(", "));
+    setClaimsInput(initial.function_claims.join(", "));
     setError(null);
     setEditing(false);
   };
@@ -165,7 +183,72 @@ export function EditableMetadata({
               ))}
             </datalist>
           </Field>
+          <Field label="Product category" htmlFor="product_category">
+            <Input
+              id="product_category"
+              list="categories-list"
+              placeholder="e.g. lip-plumper"
+              value={form.product_category ?? ""}
+              onChange={(e) =>
+                setForm({ ...form, product_category: e.target.value })
+              }
+            />
+            <datalist id="categories-list">
+              {suggestions.product_categories.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+          </Field>
+          <Field label="GMV (USD)" htmlFor="gmv_usd">
+            <Input
+              id="gmv_usd"
+              type="number"
+              min={0}
+              step="0.01"
+              placeholder="e.g. 3200"
+              value={form.gmv_usd ?? ""}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  gmv_usd: e.target.value === "" ? null : Number(e.target.value),
+                })
+              }
+            />
+          </Field>
+          <Field label="Items sold" htmlFor="items_sold">
+            <Input
+              id="items_sold"
+              type="number"
+              min={0}
+              placeholder="e.g. 180"
+              value={form.items_sold ?? ""}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  items_sold: e.target.value === "" ? null : Number(e.target.value),
+                })
+              }
+            />
+          </Field>
         </div>
+
+        <Field label="Active ingredients (comma-separated)" htmlFor="active_ingredients">
+          <Input
+            id="active_ingredients"
+            placeholder="e.g. hypochlorous-acid, niacinamide"
+            value={ingredientsInput}
+            onChange={(e) => setIngredientsInput(e.target.value)}
+          />
+        </Field>
+
+        <Field label="Function claims (comma-separated)" htmlFor="function_claims">
+          <Input
+            id="function_claims"
+            placeholder="e.g. plumping, brightening"
+            value={claimsInput}
+            onChange={(e) => setClaimsInput(e.target.value)}
+          />
+        </Field>
 
         <Field label="Creator gender">
           <div className="flex gap-2">
@@ -265,9 +348,14 @@ function ViewCard({
     niche_tag: niche,
     brand,
     product_name: product,
+    product_category: category,
     creator_gender: gender,
     user_notes: notes,
     ai_tags: aiTags,
+    active_ingredients: ingredients,
+    function_claims: claims,
+    gmv_usd: gmv,
+    items_sold: sold,
   } = initial;
 
   return (
@@ -284,6 +372,17 @@ function ViewCard({
               <span>
                 <span className="text-muted-foreground">Views:</span>{" "}
                 {views.toLocaleString()}
+              </span>
+            )}
+            {gmv !== null && (
+              <span>
+                <span className="text-muted-foreground">GMV:</span> ${gmv.toLocaleString()}
+              </span>
+            )}
+            {sold !== null && (
+              <span>
+                <span className="text-muted-foreground">Sold:</span>{" "}
+                {sold.toLocaleString()}
               </span>
             )}
             {posted && (
@@ -306,6 +405,11 @@ function ViewCard({
                 <span className="text-muted-foreground">Product:</span> {product}
               </span>
             )}
+            {category && (
+              <span>
+                <span className="text-muted-foreground">Category:</span> {category}
+              </span>
+            )}
             {gender !== "unknown" && (
               <span>
                 <span className="text-muted-foreground">Creator:</span> {gender}
@@ -322,6 +426,39 @@ function ViewCard({
             Edit
           </Button>
         </div>
+
+        {(ingredients.length > 0 || claims.length > 0) && (
+          <div className="space-y-1.5">
+            {ingredients.length > 0 && (
+              <div>
+                <div className="text-xs font-mono uppercase tracking-wide text-muted-foreground">
+                  Active ingredients
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {ingredients.map((t) => (
+                    <Badge key={t} variant="secondary" className="font-mono text-xs">
+                      {t}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            {claims.length > 0 && (
+              <div>
+                <div className="text-xs font-mono uppercase tracking-wide text-muted-foreground">
+                  Function claims
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {claims.map((t) => (
+                    <Badge key={t} variant="secondary" className="font-mono text-xs">
+                      {t}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {notes && (
           <div>

@@ -279,14 +279,21 @@ export async function processVideo({ videoId }: { videoId: string }): Promise<vo
       });
       if (bErr) throw new Error(`breakdown insert failed: ${bErr.message}`);
 
-      // ai_tags lives on videos (filterable metadata, not a breakdown facet).
-      // Setting it alongside status keeps the analyzed transition atomic from
-      // the caller's perspective.
+      // ai_tags + structured product retrieval keys (product_category,
+      // active_ingredients, function_claims) live on videos so they can drive
+      // search filter pills + cross-brand matching. Setting them alongside
+      // status keeps the analyzed transition atomic from the caller's view.
       const { error: tagErr } = await supabase
         .from("videos")
-        .update({ status: "analyzed", ai_tags: parsed.ai_tags ?? [] })
+        .update({
+          status: "analyzed",
+          ai_tags: parsed.ai_tags ?? [],
+          product_category: parsed.product_category ?? null,
+          active_ingredients: parsed.active_ingredients ?? [],
+          function_claims: parsed.function_claims ?? [],
+        })
         .eq("id", videoId);
-      if (tagErr) throw new Error(`videos ai_tags update failed: ${tagErr.message}`);
+      if (tagErr) throw new Error(`videos analyzed update failed: ${tagErr.message}`);
     }
 
     // STEP 4: embeddings — gate by any corpus_chunks row existing for this
@@ -306,7 +313,7 @@ export async function processVideo({ videoId }: { videoId: string }): Promise<vo
         supabase
           .from("breakdowns")
           .select(
-            "hook, problem, twist, solution, cta, tonality, gender_specific_notes, pacing_notes, buyer_psychology_levers, visual_style_notes",
+            "hook, problem, twist, solution, cta, tonality, authenticity_signals, gender_specific_notes, pacing_notes, buyer_psychology_levers, visual_style_notes",
           )
           .eq("video_id", videoId)
           .single(),
@@ -329,6 +336,8 @@ export async function processVideo({ videoId }: { videoId: string }): Promise<vo
 
       const facets: Array<{ kind: string; text: string | null }> = [
         { kind: "breakdown_summary", text: renderBreakdownSummary(bd) },
+        { kind: "tonality", text: (bd.tonality as string | null) ?? null },
+        { kind: "authenticity_signals", text: joinStringList(bd.authenticity_signals) },
         { kind: "gender_specific_notes", text: (bd.gender_specific_notes as string | null) ?? null },
         { kind: "buyer_psych_levers", text: joinStringList(bd.buyer_psychology_levers) },
         { kind: "pacing_notes", text: (bd.pacing_notes as string | null) ?? null },
@@ -396,7 +405,9 @@ export async function processVideo({ videoId }: { videoId: string }): Promise<vo
 }
 
 // Concise text representation of a breakdown — the unified semantic
-// content of the video for similarity search. Null spans are skipped.
+// content of the video's persuasive arc for similarity search. Tonality
+// has its own dedicated chunk_kind since 0010_brain_quality, so it no
+// longer rides along here.
 function renderBreakdownSummary(b: Record<string, unknown>): string | null {
   const spans = ["hook", "problem", "twist", "solution", "cta"] as const;
   const parts: string[] = [];
@@ -405,8 +416,6 @@ function renderBreakdownSummary(b: Record<string, unknown>): string | null {
     const text = span?.text?.trim();
     if (text) parts.push(`${key}: ${text}`);
   }
-  const tonality = b.tonality as string | null | undefined;
-  if (tonality && tonality.trim()) parts.push(`tonality: ${tonality.trim()}`);
   return parts.length > 0 ? parts.join("\n") : null;
 }
 

@@ -40,6 +40,10 @@ function parseFilters(sp: SP): { q: string; filters: SearchFilters } {
       brand: first(sp.brand),
       product_name: first(sp.product_name),
       ai_tag: first(sp.ai_tag),
+      product_category: first(sp.product_category),
+      active_ingredient: first(sp.active_ingredient),
+      function_claim: first(sp.function_claim),
+      tonality: first(sp.tonality),
     },
   };
 }
@@ -222,6 +226,70 @@ function FilterPills({
               active={filters.product_name === p}
             >
               {p}
+            </Pill>
+          ))}
+        </PillRow>
+      )}
+      {options.product_categories.length > 0 && (
+        <PillRow label="Category">
+          {options.product_categories.map((c) => (
+            <Pill
+              key={c}
+              href={toggleHref(
+                sp,
+                "product_category",
+                filters.product_category === c ? null : c,
+              )}
+              active={filters.product_category === c}
+            >
+              {c}
+            </Pill>
+          ))}
+        </PillRow>
+      )}
+      {options.active_ingredients.length > 0 && (
+        <PillRow label="Ingredient">
+          {options.active_ingredients.map((i) => (
+            <Pill
+              key={i}
+              href={toggleHref(
+                sp,
+                "active_ingredient",
+                filters.active_ingredient === i ? null : i,
+              )}
+              active={filters.active_ingredient === i}
+            >
+              {i}
+            </Pill>
+          ))}
+        </PillRow>
+      )}
+      {options.function_claims.length > 0 && (
+        <PillRow label="Claim">
+          {options.function_claims.map((c) => (
+            <Pill
+              key={c}
+              href={toggleHref(
+                sp,
+                "function_claim",
+                filters.function_claim === c ? null : c,
+              )}
+              active={filters.function_claim === c}
+            >
+              {c}
+            </Pill>
+          ))}
+        </PillRow>
+      )}
+      {options.tonalities.length > 0 && (
+        <PillRow label="Tonality">
+          {options.tonalities.map((t) => (
+            <Pill
+              key={t}
+              href={toggleHref(sp, "tonality", filters.tonality === t ? null : t)}
+              active={filters.tonality === t}
+            >
+              {t}
             </Pill>
           ))}
         </PillRow>

@@ -24,4 +24,7 @@ export type BreakdownPayload = {
   visual_style_notes: string;
   gender_specific_notes: string | null;
   ai_tags: string[];
+  product_category: string | null;
+  active_ingredients: string[];
+  function_claims: string[];
 };
