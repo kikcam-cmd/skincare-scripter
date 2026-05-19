@@ -36,6 +36,7 @@ export default function RootLayout({
             </Link>
             <nav className="text-sm text-muted-foreground flex items-center gap-4">
               <Link href="/" className="hover:text-foreground">Upload</Link>
+              <Link href="/products" className="hover:text-foreground">Products</Link>
               <Link href="/knowledge" className="hover:text-foreground">Knowledge</Link>
               <Link href="/search" className="hover:text-foreground">Search</Link>
               <Link href="/trust" className="hover:text-foreground">Trust</Link>

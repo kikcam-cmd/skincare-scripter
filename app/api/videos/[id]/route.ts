@@ -11,8 +11,7 @@ type Body = {
   view_count?: number | string | null;
   posted_at?: string | null; // YYYY-MM-DD (Postgres date)
   niche_tag?: string | null;
-  brand?: string | null;
-  product_name?: string | null;
+  product_id?: string | null;
   creator_gender?: "male" | "female" | "unknown";
   user_notes?: string | null;
   product_category?: string[] | string | null;
@@ -68,13 +67,38 @@ export async function PATCH(
       ? body.creator_gender
       : "unknown";
 
+  const supabase = createAdminClient();
+
+  // Resolve product → brand + product_name cache. Free-text brand/product
+  // is no longer accepted; client picks from the catalog.
+  let cachedBrand: string | null = null;
+  let cachedProductName: string | null = null;
+  const productId = body.product_id?.trim() || null;
+  if (productId) {
+    const { data: product, error: pErr } = await supabase
+      .from("products")
+      .select("name, brands(name)")
+      .eq("id", productId)
+      .single();
+    if (pErr || !product) {
+      return NextResponse.json(
+        { error: `product not found: ${pErr?.message ?? productId}` },
+        { status: 400 },
+      );
+    }
+    cachedProductName = product.name as string;
+    const brand = product.brands as { name: string } | { name: string }[] | null;
+    cachedBrand = Array.isArray(brand) ? brand[0]?.name ?? null : brand?.name ?? null;
+  }
+
   const update = {
     creator_handle: nullIfEmpty(body.creator_handle),
     view_count: parseNonNegNumber(body.view_count),
     posted_at: nullIfEmpty(body.posted_at),
     niche_tag: nullIfEmpty(body.niche_tag),
-    brand: nullIfEmpty(body.brand),
-    product_name: nullIfEmpty(body.product_name),
+    product_id: productId,
+    brand: cachedBrand,
+    product_name: cachedProductName,
     creator_gender: gender,
     user_notes: nullIfEmpty(body.user_notes),
     product_category: normalizeTokens(body.product_category),
@@ -85,7 +109,6 @@ export async function PATCH(
     updated_at: new Date().toISOString(),
   };
 
-  const supabase = createAdminClient();
   const { error } = await supabase.from("videos").update(update).eq("id", id);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -1,15 +1,33 @@
-import { UploadCard } from "./upload-card";
+import { UploadCard, type ProductOption } from "./upload-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 export default async function UploadPage() {
   const supabase = await createClient();
-  const { data: recent } = await supabase
-    .from("videos")
-    .select("id, filename, status, created_at, error_message")
-    .order("created_at", { ascending: false })
-    .limit(10);
+  const [recentRes, productsRes] = await Promise.all([
+    supabase
+      .from("videos")
+      .select("id, filename, status, created_at, error_message")
+      .order("created_at", { ascending: false })
+      .limit(10),
+    supabase
+      .from("products")
+      .select("id, name, brands(name)")
+      .order("name"),
+  ]);
+  const recent = recentRes.data;
+  const products: ProductOption[] = (productsRes.data ?? []).map((p) => {
+    const brand = p.brands as { name: string } | { name: string }[] | null;
+    const brandName = Array.isArray(brand) ? brand[0]?.name : brand?.name;
+    return {
+      id: p.id as string,
+      name: p.name as string,
+      brand: brandName ?? "(no brand)",
+    };
+  });
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10 space-y-8">
@@ -26,7 +44,7 @@ export default async function UploadPage() {
         </p>
       </div>
 
-      <UploadCard />
+      <UploadCard products={products} />
 
       <Card>
         <CardHeader>

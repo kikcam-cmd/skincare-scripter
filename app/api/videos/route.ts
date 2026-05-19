@@ -17,8 +17,7 @@ type Body = {
   nicheTag?: string;
   postedAt?: string | null; // YYYY-MM-DD
   creatorGender?: "male" | "female" | "unknown";
-  brand?: string | null;
-  productName?: string | null;
+  productId?: string | null;
   userNotes?: string | null;
   gmvUsd?: number | null;
   itemsSold?: number | null;
@@ -54,6 +53,31 @@ export async function POST(req: Request) {
       : "unknown";
 
   const supabase = createAdminClient();
+
+  // Look up product → derive brand + product_name cache from the catalog.
+  // Free-text brand/product is no longer accepted; client always picks from
+  // /products. Optional (null product_id falls back to legacy generic Whisper
+  // prompt + empty brand/product on the video row).
+  let cachedBrand: string | null = null;
+  let cachedProductName: string | null = null;
+  const productId = body.productId?.trim() || null;
+  if (productId) {
+    const { data: product, error: pErr } = await supabase
+      .from("products")
+      .select("name, brands(name)")
+      .eq("id", productId)
+      .single();
+    if (pErr || !product) {
+      return NextResponse.json(
+        { error: `product not found: ${pErr?.message ?? productId}` },
+        { status: 400 },
+      );
+    }
+    cachedProductName = product.name as string;
+    const brand = product.brands as { name: string } | { name: string }[] | null;
+    cachedBrand = Array.isArray(brand) ? brand[0]?.name ?? null : brand?.name ?? null;
+  }
+
   const { data: video, error } = await supabase
     .from("videos")
     .insert({
@@ -64,8 +88,9 @@ export async function POST(req: Request) {
       niche_tag: body.nicheTag ?? null,
       posted_at: nullIfEmpty(body.postedAt),
       creator_gender: creatorGender,
-      brand: body.brand ?? null,
-      product_name: body.productName ?? null,
+      product_id: productId,
+      brand: cachedBrand,
+      product_name: cachedProductName,
       user_notes: body.userNotes ?? null,
       gmv_usd: parseNonNegNumber(body.gmvUsd),
       items_sold: parseNonNegNumber(body.itemsSold),

@@ -14,6 +14,7 @@ import {
   frameTargetCount,
 } from "@/lib/pipeline/ffmpeg";
 import { sha256File } from "@/lib/pipeline/hash";
+import { buildWhisperPrompt } from "@/lib/pipeline/whisper-vocab";
 
 type GroqWord = { word: string; start: number; end: number };
 type GroqVerboseTranscription = {
@@ -54,11 +55,27 @@ export async function processVideo({ videoId }: { videoId: string }): Promise<vo
   const { data: video, error: vErr } = await supabase
     .from("videos")
     .select(
-      "id, storage_path, filename, content_hash, creator_handle, view_count, niche_tag, duration_seconds, creator_gender, brand, product_name, user_notes",
+      "id, storage_path, filename, content_hash, creator_handle, view_count, niche_tag, duration_seconds, creator_gender, brand, product_name, user_notes, product_id",
     )
     .eq("id", videoId)
     .single();
   if (vErr || !video) throw new Error(`video ${videoId} not found: ${vErr?.message}`);
+
+  // Canonical product ingredients seed both the Whisper transcription prompt
+  // (STEP 1) and the breakdown metadata block (STEP 3). Loaded once here so
+  // both steps see the same source of truth. Falls back to empty list when
+  // the video has no product_id — STEP 1 still gets brand/product/notes
+  // biasing; STEP 3 falls back to the legacy metadata-only prompt.
+  let productIngredients: string[] = [];
+  if (video.product_id) {
+    const { data: product, error: pErr } = await supabase
+      .from("products")
+      .select("ingredients")
+      .eq("id", video.product_id)
+      .single();
+    if (pErr) throw new Error(`product lookup failed: ${pErr.message}`);
+    productIngredients = (product?.ingredients as string[] | null) ?? [];
+  }
 
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), `scripter-${videoId}-`));
   const localMp4 = path.join(tmp, "in.mp4");
@@ -129,6 +146,12 @@ export async function processVideo({ videoId }: { videoId: string }): Promise<vo
         model: "whisper-large-v3-turbo",
         response_format: "verbose_json",
         timestamp_granularities: ["word"],
+        prompt: buildWhisperPrompt({
+          brand: video.brand,
+          productName: video.product_name,
+          productIngredients,
+          userNotes: video.user_notes,
+        }),
       })) as unknown as GroqVerboseTranscription;
 
       const lines = chunkByWordWindow(transcription.words ?? [], 600);
@@ -253,6 +276,7 @@ export async function processVideo({ videoId }: { videoId: string }): Promise<vo
           brand: video.brand,
           product_name: video.product_name,
           user_notes: video.user_notes,
+          canonical_ingredients: productIngredients,
         },
         transcriptLines,
         frames: frames.map((f, i) => ({

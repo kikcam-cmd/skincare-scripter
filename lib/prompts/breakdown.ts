@@ -46,6 +46,14 @@ brands differ.
   "aha", "bha", "pha", "bentonite", "kaolin". Leave empty if no
   ingredient is named.
 
+  The metadata block may include \`canonical_ingredients\` — the product's
+  known INCI list from the catalog. Use it ONLY to disambiguate misspellings
+  the transcriber may have produced (e.g. transcribed "valofulin" → emit
+  "volufiline"; transcribed "dr millexon" → that's "Dr. Melaxin" the brand,
+  not an ingredient). The canonical list is for spelling correction of what
+  the creator DID say. Do NOT copy the canonical list into \`active_ingredients\`
+  wholesale — if the creator names 2 of 11 known ingredients, emit 2, not 11.
+
 - \`function_claims\`: array of what the creator says the product DOES,
   FIXES, IMPROVES, or PROMISES in the video — captured in the creator's
   framing, NOT restricted to brand-compliant language. Creators are
@@ -186,6 +194,7 @@ type CallArgs = {
     brand: string | null;
     product_name: string | null;
     user_notes: string | null;
+    canonical_ingredients: string[];
   };
   transcriptLines: { t_start: number; t_end: number; text: string }[];
   frames: { t_seconds: number; base64: string }[];
@@ -202,6 +211,10 @@ export async function callClaudeBreakdown(
         .join("\n")
     : "(empty — derive entirely from frames)";
 
+  const canonicalIngredientsLine = m.canonical_ingredients.length
+    ? `- Canonical ingredients (catalog — use ONLY for spelling correction): ${m.canonical_ingredients.join(", ")}\n`
+    : "";
+
   const content: Anthropic.ContentBlockParam[] = [
     {
       type: "text",
@@ -215,6 +228,7 @@ export async function callClaudeBreakdown(
         `- Niche tag: ${m.niche_tag ?? "unknown"}\n` +
         `- Duration: ${m.duration_seconds}s\n` +
         (m.user_notes ? `- User notes: ${m.user_notes}\n` : "") +
+        canonicalIngredientsLine +
         `\nTranscript:\n${transcriptText}\n\n` +
         `Key frames (in order):`,
     },

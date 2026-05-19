@@ -10,6 +10,7 @@ import { StudyTool } from "./study-tool";
 import { SimilarVideos } from "./similar-videos";
 import {
   EditableMetadata,
+  type ProductOption,
   type Suggestions,
   type VideoMetadataFields,
 } from "./editable-metadata";
@@ -83,10 +84,25 @@ export default async function VideoDetailPage({
 
   // Distinct suggestion lists for the metadata edit form. Cheap at v0 scale;
   // promote to a dedicated helper if other surfaces need the same data.
-  const { data: allMeta } = await admin
-    .from("videos")
-    .select("niche_tag, brand, product_name, product_category, active_ingredients, function_claims")
-    .neq("id", id);
+  const [{ data: allMeta }, { data: productsRaw }] = await Promise.all([
+    admin
+      .from("videos")
+      .select("niche_tag, brand, product_name, product_category, active_ingredients, function_claims")
+      .neq("id", id),
+    admin
+      .from("products")
+      .select("id, name, brands(name)")
+      .order("name"),
+  ]);
+  const productsList: ProductOption[] = (productsRaw ?? []).map((p) => {
+    const brand = p.brands as { name: string } | { name: string }[] | null;
+    const brandName = Array.isArray(brand) ? brand[0]?.name : brand?.name;
+    return {
+      id: p.id as string,
+      name: p.name as string,
+      brand: brandName ?? "(no brand)",
+    };
+  });
   const suggestions: Suggestions = (() => {
     const niche = new Set<string>();
     const brand = new Set<string>();
@@ -121,6 +137,7 @@ export default async function VideoDetailPage({
         : Number(video.view_count),
     posted_at: (video.posted_at as string | null) ?? null,
     niche_tag: (video.niche_tag as string | null) ?? null,
+    product_id: (video.product_id as string | null) ?? null,
     brand: (video.brand as string | null) ?? null,
     product_name: (video.product_name as string | null) ?? null,
     creator_gender:
@@ -215,6 +232,7 @@ export default async function VideoDetailPage({
         videoId={id}
         initial={metadataInitial}
         suggestions={suggestions}
+        products={productsList}
       />
 
 

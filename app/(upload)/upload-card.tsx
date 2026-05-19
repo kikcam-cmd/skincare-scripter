@@ -1,33 +1,44 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 type Phase = "idle" | "signing" | "uploading" | "registering" | "done" | "error";
 type Gender = "unknown" | "male" | "female";
 
-export function UploadCard() {
+export type ProductOption = { id: string; name: string; brand: string };
+
+export function UploadCard({ products }: { products: ProductOption[] }) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const [creatorGender, setCreatorGender] = useState<Gender>("unknown");
-  const [brand, setBrand] = useState("");
-  const [productName, setProductName] = useState("");
+  const [productId, setProductId] = useState("");
   const [userNotes, setUserNotes] = useState("");
   const [viewCount, setViewCount] = useState("");
   const [postedAt, setPostedAt] = useState("");
   const [gmvUsd, setGmvUsd] = useState("");
   const [itemsSold, setItemsSold] = useState("");
 
+  const productsByBrand = useMemo(() => {
+    const groups = new Map<string, ProductOption[]>();
+    for (const p of products) {
+      const list = groups.get(p.brand) ?? [];
+      list.push(p);
+      groups.set(p.brand, list);
+    }
+    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [products]);
+
   const resetMetadata = () => {
     setCreatorGender("unknown");
-    setBrand("");
-    setProductName("");
+    setProductId("");
     setUserNotes("");
     setViewCount("");
     setPostedAt("");
@@ -39,6 +50,10 @@ export function UploadCard() {
     async (files: File[]) => {
       const file = files[0];
       if (!file) return;
+      if (!productId) {
+        setError("pick a product first (or add one on /products)");
+        return;
+      }
       setError(null);
       setProgress(0);
 
@@ -66,8 +81,7 @@ export function UploadCard() {
             storagePath,
             filename: file.name,
             creatorGender,
-            brand: brand.trim() || null,
-            productName: productName.trim() || null,
+            productId,
             userNotes: userNotes.trim() || null,
             viewCount: viewCount.trim() === "" ? null : Number(viewCount),
             postedAt: postedAt.trim() || null,
@@ -86,7 +100,7 @@ export function UploadCard() {
         setPhase("error");
       }
     },
-    [router, creatorGender, brand, productName, userNotes, viewCount, postedAt, gmvUsd, itemsSold],
+    [router, creatorGender, productId, userNotes, viewCount, postedAt, gmvUsd, itemsSold],
   );
 
   const busy = phase === "signing" || phase === "uploading" || phase === "registering";
@@ -105,28 +119,34 @@ export function UploadCard() {
   return (
     <Card>
       <CardContent className="p-6 space-y-5">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Brand">
-            <input
-              type="text"
-              value={brand}
-              onChange={(e) => setBrand(e.target.value)}
-              placeholder="Dr. Melaxin"
+        <Field label="Product">
+          <div className="flex gap-2">
+            <select
+              value={productId}
+              onChange={(e) => setProductId(e.target.value)}
               disabled={busy}
-              className="w-full h-9 px-3 rounded-md border bg-background text-sm"
-            />
-          </Field>
-          <Field label="Product">
-            <input
-              type="text"
-              value={productName}
-              onChange={(e) => setProductName(e.target.value)}
-              placeholder="Lip Plumper"
-              disabled={busy}
-              className="w-full h-9 px-3 rounded-md border bg-background text-sm"
-            />
-          </Field>
-        </div>
+              className="flex-1 h-9 px-3 rounded-md border bg-background text-sm"
+            >
+              <option value="">— pick a product —</option>
+              {productsByBrand.map(([brand, items]) => (
+                <optgroup key={brand} label={brand}>
+                  {items.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <Link
+              href="/products"
+              target="_blank"
+              className="text-xs text-muted-foreground hover:text-foreground self-center whitespace-nowrap"
+            >
+              + Manage products →
+            </Link>
+          </div>
+        </Field>
 
         <Field label="Creator gender">
           <div className="flex gap-2">

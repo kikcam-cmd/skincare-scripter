@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,11 +11,14 @@ import { Label } from "@/components/ui/label";
 
 type Gender = "male" | "female" | "unknown";
 
+export type ProductOption = { id: string; name: string; brand: string };
+
 export type VideoMetadataFields = {
   creator_handle: string | null;
   view_count: number | null;
   posted_at: string | null; // YYYY-MM-DD
   niche_tag: string | null;
+  product_id: string | null;
   brand: string | null;
   product_name: string | null;
   creator_gender: Gender;
@@ -40,10 +44,12 @@ export function EditableMetadata({
   videoId,
   initial,
   suggestions,
+  products,
 }: {
   videoId: string;
   initial: VideoMetadataFields;
   suggestions: Suggestions;
+  products: ProductOption[];
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -54,6 +60,16 @@ export function EditableMetadata({
   const [categoryInput, setCategoryInput] = useState(initial.product_category.join(", "));
   const [ingredientsInput, setIngredientsInput] = useState(initial.active_ingredients.join(", "));
   const [claimsInput, setClaimsInput] = useState(initial.function_claims.join(", "));
+
+  const productsByBrand = useMemo(() => {
+    const groups = new Map<string, ProductOption[]>();
+    for (const p of products) {
+      const list = groups.get(p.brand) ?? [];
+      list.push(p);
+      groups.set(p.brand, list);
+    }
+    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [products]);
 
   const onSave = async () => {
     setSaving(true);
@@ -67,8 +83,7 @@ export function EditableMetadata({
           view_count: form.view_count,
           posted_at: form.posted_at,
           niche_tag: form.niche_tag,
-          brand: form.brand,
-          product_name: form.product_name,
+          product_id: form.product_id,
           creator_gender: form.creator_gender,
           user_notes: form.user_notes,
           product_category: categoryInput,
@@ -155,35 +170,35 @@ export function EditableMetadata({
               ))}
             </datalist>
           </Field>
-          <Field label="Brand" htmlFor="brand">
-            <Input
-              id="brand"
-              list="brands-list"
-              placeholder="e.g. Medicube"
-              value={form.brand ?? ""}
-              onChange={(e) => setForm({ ...form, brand: e.target.value })}
-            />
-            <datalist id="brands-list">
-              {suggestions.brands.map((b) => (
-                <option key={b} value={b} />
-              ))}
-            </datalist>
-          </Field>
-          <Field label="Product" htmlFor="product_name">
-            <Input
-              id="product_name"
-              list="products-list"
-              placeholder="e.g. Zero Pore Blackhead Mud Mask"
-              value={form.product_name ?? ""}
-              onChange={(e) =>
-                setForm({ ...form, product_name: e.target.value })
-              }
-            />
-            <datalist id="products-list">
-              {suggestions.products.map((p) => (
-                <option key={p} value={p} />
-              ))}
-            </datalist>
+          <Field label="Product" htmlFor="product_id">
+            <div className="flex gap-2">
+              <select
+                id="product_id"
+                value={form.product_id ?? ""}
+                onChange={(e) =>
+                  setForm({ ...form, product_id: e.target.value || null })
+                }
+                className="flex-1 h-9 px-3 rounded-md border bg-background text-sm"
+              >
+                <option value="">— none —</option>
+                {productsByBrand.map(([brand, items]) => (
+                  <optgroup key={brand} label={brand}>
+                    {items.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <Link
+                href="/products"
+                target="_blank"
+                className="text-xs text-muted-foreground hover:text-foreground self-center whitespace-nowrap"
+              >
+                + Manage →
+              </Link>
+            </div>
           </Field>
           <Field label="GMV (USD)" htmlFor="gmv_usd">
             <Input
