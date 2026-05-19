@@ -8,10 +8,12 @@ Skincare-focused, multi-creator-gender. Source videos and the eventual script co
 
 ## Two ingestion paths, one corpus
 
-1. **Video uploads (manual)** — Cameron records/saves viral TikToks to camera roll, drags MP4 into the app, tags brand, product, creator gender, and optional free-form notes. Claude also extracts 5–10 freeform `ai_tags` per video during analysis (product category, audience signal, content format, use case).
+1. **Video uploads (manual)** — Cameron records/saves viral TikToks to camera roll, drags MP4 into the app, **picks the product from a dropdown** (brand + product live in a normalized catalog — `brands` / `products` tables with `videos.product_id` FK, shipped Slice 9), tags creator gender, optional free-form notes. Claude also extracts 5–10 freeform `ai_tags` per video during analysis (product category, audience signal, content format, use case).
 2. **Knowledge uploads** — PDFs / Markdown / TXT / pasted transcripts of books, course notes, swipe files, frameworks. Optional source label.
 
 Both flow into the same searchable corpus (pgvector), with separate detail views.
+
+**Why a products catalog (Slice 9, 2026-05-19):** the free-text brand + product fields drifted (`Dr Melaxin` vs `Dr. Melaxin`) and made the Whisper transcription prompt impossible to seed precisely with per-product vocabulary. The catalog is the single source of truth; `videos.brand` + `videos.product_name` remain as denormalized cache columns so the Slice 6 search RPC is unchanged. Each product carries `main_ingredients[]` (curated actives the pipeline biases on, ≤15-20 typical) and `ingredients[]` (full INCI deck, used as fallback). The Whisper transcription prompt now seeds from the picked product's `main_ingredients` per upload, fixing "Volufiline → Valofulin" / "Dr. Melaxin → dr millexon" misrecognitions.
 
 ## v0 scope (this project)
 

@@ -6,95 +6,52 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 ## Where we are right now
 
-**Phase:** **v0 (Slices 1–7) + Slice 8 brain-quality + Slice 8 follow-ups
-all shipped on prod. 3 existing videos have analytics + structured
-metadata populated. Backfill of those 3 videos still pending (Cameron's
-discretion — he plans to upload more material before re-extracting).
-Phase 2 script-gen surface deferred until corpus grows large enough to
-empirically validate retrieval.**
+**Phase:** v0 corpus + **Slice 9 products catalog + Slice 9.5 main_ingredients split** shipped to prod. 9 embedded videos across 3 brands and 6 products. The pipeline is now product-aware: every upload picks a product from a dropdown, Whisper's transcription prompt biases on that product's canonical `main_ingredients`, and STEP 3 receives the canonical list as a spelling-correction reference (without permission to dump wholesale into per-video extraction). Phase 2 script-gen still deferred — re-engage when retrieval quality is empirically validated against the post-backfill corpus.
 
-Slice 8 reframe (2026-05-17): Cameron's pivot during PLAN_PHASE2 §2
-discussion — *"perfect the brain"* before building the script-gen
-surface. PLAN_PHASE2 §2's three open questions are surface-level (auth,
-drafts, form contract) and don't move retrieval quality. With only 3
-embedded videos, the binding constraint is corpus size + structured
-retrieval keys, not script-gen UX.
+**Why Slice 9 happened (2026-05-19):** Cameron flagged transcription misrecognitions on the new batch of uploads — Whisper was producing "Volufiline → Valofulin", "Dr. Melaxin → dr millexon", and similar drift on proper nouns + active-ingredient names. These misspellings contaminate transcript embeddings and feed into STEP 3's extraction. Two structural fixes shipped together:
+1. **Products catalog** (`brands` + `products` tables, `videos.product_id` FK) replaces free-text brand + product_name fields with a dropdown picker. Stops typo drift, and gives every video a stable FK to canonical product data.
+2. **Whisper prompt biasing.** Groq's `audio.transcriptions.create` accepts a `prompt` parameter (≤224 tokens) that conditions decoding on expected vocabulary. `lib/pipeline/whisper-vocab.ts` builds a natural-language prompt from the picked product's `main_ingredients` + brand + product name + a small static skincare-actives tail. STEP 3's metadata block also receives `canonical_ingredients` with precise prompt wording: *"use ONLY to disambiguate transcript misspellings, do NOT copy wholesale into active_ingredients[]"*.
 
-**What landed across Slice 8 (commits 9984a11 → 8970ec79 → 7913d8d):**
+**Slice 9.5 follow-up (same session):** the 91-INCI Dr. Melaxin Gifted Collagen Boost Set blew past Whisper's 224-token prompt budget and would have given Claude too much room to dump canonical names into per-video extraction. Split `products.ingredients` into:
+- `main_ingredients text[]` — curated actives the pipeline biases on (≤15-20 typical)
+- `ingredients text[]` — full INCI deck, used as fallback when main is empty so un-curated products still get some biasing
 
-- Migration `0010_brain_quality.sql` applied to prod DB
-  (yajpzqbrclsxhljialqs).
-- Migration `0011_product_category_array.sql` applied — widened
-  `videos.product_category text → text[]` (Cameron's feedback after
-  stamping analytics: products legitimately fit multiple categories,
-  TikTok shop's classification often differs from functional category,
-  e.g. a "lip plumper" filed under "lipstick-and-lip-gloss"). Also
-  reframed `function_claims` in the prompt to capture *creator-spoken*
-  positioning, not just brand-compliant outcomes.
-- New `videos` columns: `product_category text[]`,
-  `active_ingredients text[]`, `function_claims text[]`,
-  `gmv_usd numeric`, `items_sold integer`.
-- Breakdown prompt extracts the three structured product axes with
-  sharp INCI vs end-user-outcome guidance ("when unsure, prefer
-  function_claims, leave ingredients empty"). `product_category` is
-  1–4 values capturing functional category + TikTok shop classification
-  + alternative use-case framings.
-- Pipeline persists the new fields in STEP 3; STEP 4 gains `tonality`
-  and `authenticity_signals` as new `chunk_kind` retrieval surfaces
-  (tonality moved out of `breakdown_summary` into its own chunk;
-  `authenticity_signals` was orphan-extracted in v0 — now retrievable).
-- `search_corpus` RPC gains 4 new filter params (`p_product_category`,
-  `p_active_ingredient`, `p_function_claim`, `p_tonality`) and projects
-  6 new columns. 0011's redefinition switched the category filter from
-  equality to `= any(arr)` (same pattern as `p_ai_tag`).
-- `/search` page gets 4 new filter pill rows; upload form gains analytics
-  inputs (views / posted / GMV / items_sold); inline metadata editor
-  accepts all new fields with `&` → " and " normalization (7913d8d) so
-  UI-typed "Moisturizers & Mists" lands as `moisturizers-and-mists`.
-- Ranker (`lib/search/rank.ts`) carries gmv_usd + items_sold in
-  `RankInput` but **finalScore formula unchanged** — tuning weights on
-  3 videos is noise. Real ranker pass deferred until ~20+ videos with
-  real GMV exist.
-- Knowledge corpus cleanup: Cialdini PDF (knowledge_item `6898187f`)
-  retitled to "Influence: The Psychology of Persuasion" with source_label
-  "Cialdini - Influence". Pre-pivot "Male creator skincare positioning
-  (notes)" item (knowledge_item `ee328496`) deleted along with its 31
-  corpus_chunks. `source_trust` flattened — Hormozi stub label removed,
-  personal-notes weight set to 1.0. Cameron's stance: all knowledge
-  trusted equally for script-gen; the lever stays for later.
-- Backfill runbook for the 3 existing embedded videos at
-  `db/backfill/0010_backfill_runbook.md`. Durable insurance dump at
-  `db/backfill/0010_pre_rerun.json` (3 breakdowns + 22 corpus_chunks,
-  no embeddings — regenerable from text). Supabase PITR covers a
-  7-day rollback window.
+The /products edit page surfaces both with a "N main · M INCI · K videos" chip per product row.
 
-**Corpus state at 2026-05-18 (after Cameron's metadata pass):**
-3 embedded videos, all now with analytics + structured product fields
-populated:
+**Corpus state at 2026-05-19:**
 
-| ID | Brand · Product | Views | Posted | GMV (USD) | Sold | product_category |
+| ID | Brand · Product | Views | Posted | GMV (USD) | Sold | Product curated |
 |---|---|---|---|---|---|---|
-| `d21d7f8b` | Medicube Zero Pore Blackhead Mud Mask | 22.48M | 2026-04-27 | $62,020 | 3,250 | `[face-mask]` |
-| `5d44a1de` | Dr. Melaxin BP Spicule Plumping Lip Shot | 11.62M | 2026-04-02 | $130,010 | 7,660 | `[lip-plumper, lipstick-and-lip-gloss]` |
-| `d5240f30` | Dr. Melaxin Calcium Multi Balm | 7.16M | 2026-03-14 | $139,430 | 8,040 | `[moisturizers-and-mists]` |
+| `d21d7f8b` | Medicube · Zero Pore Blackhead Mud Mask | 22.48M | 2026-04-27 | $62,020 | 3,250 | ✓ (6 main) |
+| `5d44a1de` | Dr. Melaxin · BP Spicule Plumping Lip Shot | 11.62M | 2026-04-02 | $130,010 | 7,660 | — (6 INCI only) |
+| `d5240f30` | Dr. Melaxin · Calcium Multi Balm | 7.16M | 2026-03-14 | $139,430 | 8,040 | ✓ (5 main) |
+| `86c06b78` | Medicube · PDRN Pink Collagen Volume Multi Balm | 25.38M | 2026-04-14 | $520,370 | 27,650 | ✓ (11 main) |
+| `23b2bbac` | Medicube · PDRN Pink Collagen Volume Multi Balm | 11.06M | 2026-03-22 | $202,880 | 12,650 | ✓ (11 main) |
+| `67009846` | Medicube · PDRN Pink Collagen Volume Multi Balm | 10.67M | 2026-04-08 | $225,200 | 12,860 | ✓ (11 main) |
+| `0ec8aa90` | Medicube · PDRN Pink Collagen Volume Multi Balm | 8.10M | 2026-04-20 | $204,530 | 10,870 | ✓ (11 main) |
+| `ac8a89b6` | Dr. Melaxin · Gifted Collagen Boost Set | 13.82M | 2026-05-04 | $315,210 | 5,450 | — (91 INCI only) |
+| `e2afe5c7` | Laka · Spicy Lip Plumper | 1.28M | 2026-05-14 | $45,690 | 3,180 | — (22 INCI only) |
 
-`active_ingredients` populated for all 3. `function_claims` populated
-for 2/3 — `d21d7f8b` empty (backfill will fill from transcript).
-Plus 1 failed (`6cae114c` screen recording), 2 duplicates. 1 embedded
-knowledge item (Cialdini's *Influence*).
+Plus 1 failed (`6cae114c` screen recording) and 2 duplicates. 1 embedded knowledge item (Cialdini's *Influence*).
 
-The 3 existing videos still carry their pre-Slice-8 `breakdowns` rows
-(no `product_category` / `active_ingredients` / `function_claims` extracted
-into the JSON, no `tonality` or `authenticity_signals` `corpus_chunks`).
-Backfill regenerates these — see "Next concrete action".
+**Products catalog state at 2026-05-19:** 3 brands × 6 products. Curation 3/6 done:
+- ✓ Medicube · PDRN Pink Collagen Volume Multi Balm (11 main — `5%-volufiline`, `liposomal-pdrn`, `200-dalton-collagen`, `peptides`, `retinol`, `hyaluronic-acid`, etc.)
+- ✓ Medicube · Zero Pore Blackhead Mud Mask (6 main — `aha`, `bha`, `pha`, `bentonite`, `kaolin`, `canadian-colloidal-clay`)
+- ✓ Dr. Melaxin · Calcium Multi Balm (5 main — `adenosine`, `calcium`, `collagen`, `elastin`, `glutathione`)
+- ✗ Dr. Melaxin · BP Spicule Plumping Lip Shot
+- ✗ Dr. Melaxin · Gifted Collagen Boost Set (91 INCI rows — biggest curation pass)
+- ✗ Laka · Spicy Lip Plumper
 
-**Pre-Phase-2 code audit (2026-05-17):** ran a comprehensive health check
-across security / pipeline / code quality. 1 fix shipped immediately
-(timing-safe Basic Auth compare in `proxy.ts`); 8 findings deferred into
-Phase 2 Slice 1's auth retrofit — see "Pre-Phase-2 audit findings" section
-below for the full list with file:line refs. Not bundled into Slice 8.
+Cameron's stance on the 3 curated products' empty `ingredients` (full INCI was effectively moved into `main_ingredients` during the curation pass): **intentional**. The full INCI deck has no retrieval purpose; only `main_ingredients` matters for biasing and Phase 2 script-gen surfaces.
 
-**Last updated:** 2026-05-18 (Slice 8 + follow-ups deployed at 7913d8d; data state captured)
+**The pause point — what's NOT done yet:**
+- The 9 existing videos still carry their **pre-Slice-9 transcripts** (with the original misspellings) and the **original 3** (`d21d7f8b` / `5d44a1de` / `d5240f30`) still carry their **pre-Slice-8 breakdowns** (no `tonality` / `authenticity_signals` `chunk_kind` rows in `corpus_chunks`, no `tonality`/`authenticity_signals` in their breakdown).
+- Backfill is scoped (all 9 videos, full pipeline re-run from STEP 1 — preserves frames since STEP 2 gate stays satisfied) but gated on:
+  1. Cameron finishing the 3 remaining product curations (BP Spicule, Gifted Boost Set, Laka)
+  2. ONE canary upload to empirically verify Whisper biasing works against pre-fix material before destroying 9 videos' worth of breakdowns
+- **The Slice 9 backfill is a superset of the Slice 8 backfill.** Running it gets both fixes (Slice 8 chunk_kinds + Slice 9 prompt biasing) onto the original 3 simultaneously. The Slice 8 runbook at `db/backfill/0010_backfill_runbook.md` is functionally subsumed.
+
+**Last updated:** 2026-05-19 (Slice 9 + 9.5 deployed at `f5026e06`; products curation 3/6; backfill gated on canary)
 
 ## Read these in order
 
@@ -118,6 +75,9 @@ If you only have time for one when picking up v0 context: `PLAN.md`. For Phase 2
 - **Knowledge intake:** PDF / MD / TXT / pasted text
 - **Pipeline triggering:** `POST /api/videos` runs `processVideo()` via `after()` from `next/server` in the same function lifetime, `maxDuration = 800`. Do **not** use a fire-and-forget `fetch` to a separate route.
 - **Dedup:** sha256 computed server-side as STEP 0 of pipeline, not in the browser.
+- **Brand + product are FK-backed (Slice 9).** `videos.product_id` → `products` → `brands`. `videos.brand` + `videos.product_name` are denormalized cache columns; the products catalog is the single source of truth. New uploads + edits pick from `/products` — no free-text path. `/api/products/[id]` PATCH propagates renames to the cache on related `videos` rows. Slice 6 `search_corpus` RPC reads the cache (no RPC change at this layer).
+- **Canonical product ingredients (Slice 9.5):** `products.main_ingredients[]` is the curated active list the pipeline biases on; `products.ingredients[]` is the full INCI deck (used as fallback when main is empty). Per-video `videos.active_ingredients[]` still captures what the creator actually says — distinct from the canonical product list.
+- **Whisper prompt biasing (Slice 9):** STEP 1 calls Groq with a natural-language `prompt:` built from the picked product's brand + product name + `main_ingredients` (or `ingredients` if main empty) + a small static skincare-actives tail (`lib/pipeline/whisper-vocab.ts`). The same canonical list is passed to STEP 3's metadata block as `canonical_ingredients` with explicit spelling-correction-only wording. Do not pass the full INCI deck to Whisper — the 224-token prompt budget can't hold it.
 
 ## v0 open questions from PLAN — all resolved during build
 
@@ -146,59 +106,66 @@ Numbered list from `PLAN.md` "Risks & open questions". Resolutions noted; left h
 | 5.5 | Metadata pivot: brand/product/gender/notes/ai_tags + neutral breakdown | **shipped ✓** |
 | 6 | Unified search across both corpora (now uses creator_gender/brand/product/ai_tags filters) | **shipped ✓** |
 | 7 | Polish (editable metadata, niche tags, clickable timestamps) | **shipped ✓** (deep links + editable metadata + clickable timestamps + DB-backed trust UI all landed) |
-| 8 | Brain quality: structured product axes (product_category[] / active_ingredients[] / function_claims[]), GMV/items_sold conversion columns, tonality + authenticity_signals as retrieval surfaces, knowledge corpus cleanup, trust flatten. Follow-ups: 0011 widened product_category to array + creator-claims prompt reframe; `&` → " and " UI normalize | **shipped ✓** (9984a11 + 8970ec79 + 7913d8d; backfill of 3 existing videos still pending Cameron's discretion) |
+| 8 | Brain quality: structured product axes (product_category[] / active_ingredients[] / function_claims[]), GMV/items_sold conversion columns, tonality + authenticity_signals as retrieval surfaces, knowledge corpus cleanup, trust flatten. Follow-ups: 0011 widened product_category to array + creator-claims prompt reframe; `&` → " and " UI normalize | **shipped ✓** (9984a11 + 8970ec79 + 7913d8d; original 3 still pre-Slice-8 — absorbed by Slice 9 backfill) |
+| 9 | Products catalog (brands + products tables + videos.product_id FK) + Whisper prompt biasing via product.main_ingredients + STEP 3 canonical-ingredients spelling-correction guidance. /products admin page; upload form + inline editor pickers; PATCH route propagates cache. 9.5 follow-up: split products.ingredients into main_ingredients[] (curated actives) + ingredients[] (full INCI fallback). | **shipped ✓** (bff8dd4 + f5026e0; products curation 3/6; full 9-video backfill gated on canary upload) |
 
 ## Next concrete action
 
-**Cameron's call on order — both moves needed before Phase 2 re-engages:**
+Four-step sequence — Cameron and the agent alternate. Steps 1 + 2 are Cameron-side; steps 3 + 4 the agent executes once the canary green-lights.
 
-A. **Upload more videos.** Brain quality is the binding constraint and
-   3 videos can't validate retrieval. Target ≥20 videos with full
-   metadata (brand / product / creator_gender / GMV / items_sold /
-   posted_at / view_count) before the ranker formula pass and any
-   serious Phase 2 work. New uploads use the new prompt automatically
-   — no backfill needed for them.
+### 1. Finish curating the 3 remaining products on `/products`
 
-B. **Backfill the 3 existing embedded videos** per
-   `db/backfill/0010_backfill_runbook.md`. Without backfill, the
-   existing 3 still have pre-Slice-8 `breakdowns` rows (no
-   product_category / active_ingredients / function_claims in the
-   JSON, no tonality / authenticity_signals `corpus_chunks`). Note:
-   backfill OVERWRITES Cameron's hand-stamped `product_category` /
-   `active_ingredients` / `function_claims` values on the videos rows.
-   If those manual values were intentional (Cameron's TikTok shop
-   categories like `moisturizers-and-mists` are NOT something Claude
-   can derive from the video — those are TikTok platform metadata),
-   re-stamp them post-backfill via the inline metadata editor.
+Outstanding (per the products catalog state in "Where we are"):
+- Dr. Melaxin · BP Spicule Plumping Lip Shot — 0 main / 6 INCI
+- Dr. Melaxin · Gifted Collagen Boost Set — 0 main / **91 INCI** (biggest cleanup pass; trim to ~15 actives that matter)
+- Laka · Spicy Lip Plumper — 0 main / 22 INCI
 
-   **Practical sequence to preserve Cameron's category values:** dump
-   the current videos.product_category for the 3 IDs first, run
-   backfill, re-merge or re-stamp. Or simpler: delete only `breakdowns`
-   + the new chunk_kinds (`tonality`, `authenticity_signals`,
-   `breakdown_summary`, etc.) and let STEP 4 regenerate; skip STEP 3's
-   videos.product_category overwrite — but that requires editing the
-   pipeline temporarily. Easiest: just re-stamp after backfill.
+Goal per product: 5–15 `main_ingredients` covering the actives + any proper-noun ingredient names the transcript might misspell (Volufiline, PDRN, spicule, etc.). Full INCI in `ingredients[]` is optional reference — Cameron's prior pass cleared it on the 3 already-curated products, which is fine (the pipeline only reads `main_ingredients` first).
 
-Order can be A → B or B → A. A doesn't depend on backfill; B doesn't
-require new uploads first. Picking A first means more material to
-test retrieval quality against; picking B first means the existing
-videos get the new prompt's richer extraction sooner.
+### 2. Canary upload — verify Whisper biasing on one new video
 
-**Phase 2 script-gen surface (PLAN_PHASE2) stays deferred** until brain
-is demonstrably good. The three load-bearing §2 questions
-(multi-tenancy, auth provider, script contract) are now better-informed
-by the brain-quality work but don't unblock until corpus + retrieval
-quality clears a "this is worth wrapping a script-gen surface around"
-bar. Re-engage when Cameron has ~20 videos in and an `/search` query
-for a representative request returns the right grounding material.
+Pick a Medicube or Dr. Melaxin video whose product is curated (e.g. PDRN Multi Balm or Zero Pore Mud Mask). Tag the product via the picker on `/`. After the pipeline lands (~1–2 min):
 
-As corpus grows, watch for filter dimensions that should graduate to
-structured fields (per [[feedback-skincare-scripter-filter-suggestions]]
-— flag them proactively with evidence, not just suggestion).
+**Pass criteria — read the StudyTool transcript on `/videos/<id>` and confirm:**
+- Brand name renders correctly (`Dr. Melaxin`, not `dr millexon`; `Medicube`, not approximations)
+- Active ingredient terms render correctly (`Volufiline` not `Valofulin`; `PDRN` not `pretty dean`; `spicule` not `spitule`/etc.)
+- Compare against an existing video on the same brand (e.g. `5d44a1de` for Dr. Melaxin or `d21d7f8b` for Medicube) — the pre-fix material should show the misspellings, the canary should not.
+
+If pass: proceed to step 3. If not: tune `lib/pipeline/whisper-vocab.ts` or the per-product `main_ingredients` before destroying anything.
+
+### 3. Full backfill — 9 videos (agent executes)
+
+**Scope:** all 9 embedded videos. Re-runs STEP 1 (Whisper + new prompt) → STEP 3 (Claude with `canonical_ingredients`) → STEP 4 (re-embed). Frames preserved (STEP 2 gate stays satisfied since `key_frames` rows exist). The Slice 9 backfill is a superset of the Slice 8 backfill; running it gets both fixes onto the original 3 simultaneously.
+
+**Sequence:**
+1. Insurance dump: `select id, brand, product_name, product_category, active_ingredients, function_claims from videos where status='embedded'` → save to `db/backfill/0012_pre_rerun.json`.
+2. DELETE for the 9: `transcripts`, `transcript_chunks`, `breakdowns`, `corpus_chunks` (filtered by `video_id` where status='embedded' or by explicit id list).
+3. Reset: `update videos set status='frames_extracted', product_category='{}', active_ingredients='{}', function_claims='{}', ai_tags='{}' where id in (...)`.
+4. Trigger pipeline per video. Options:
+   - Browser: open `/videos/<id>`, click "Re-run pipeline" for each
+   - CLI: `npm run process-video <id>` (uses `.env.local`)
+   - API: `POST /api/videos/<id>/retry` via curl + Basic Auth
+5. Verify each lands at `status='embedded'` with the Slice 8 chunk_kinds (`tonality`, `authenticity_signals`) and brand/ingredient names rendering correctly.
+6. Re-stamp any manual values dumped in step 1 if they were intentional non-AI-derivable values (e.g. Cameron's TikTok-shop category stamps like `moisturizers-and-mists` on `d5240f30` — Claude can't derive those from video content).
+
+Cost: ~$0.20-0.50 per video × 9 = $2-5. Time: ~30s-2min per video serially.
+
+### 4. Post-backfill — confirm + STATUS sweep
+
+- Verify all 9 land at `status='embedded'` with new chunk_kinds.
+- Compare 3-4 representative transcripts before/after.
+- Flip the Slice 9 row in the slice plan table from "backfill gated on canary" to "backfill complete".
+- Update "Where we are" + corpus state table.
+- Decide whether Phase 2 re-engagement bar is met (see PLAN_PHASE2 §2 — the binding constraint is whether `/search` returns useful grounding material for a representative script-gen request).
+
+---
+
+**Phase 2 script-gen surface (PLAN_PHASE2) stays deferred** through step 4. The catalog now pre-wires PLAN_PHASE2 §2.3's "structured form" recommendation — affiliate's product picker maps 1:1 to the products table. The three load-bearing §2 questions (multi-tenancy, auth provider, script contract) still gate slice planning.
+
+As corpus grows, watch for filter dimensions that should graduate to structured fields (per [[feedback-skincare-scripter-filter-suggestions]] — flag them proactively with evidence, not just suggestion).
 
 Already pre-decided in PLAN_PHASE2 (no Cameron action needed):
-- §2.4 `proxy.ts` disposition — keep as outer gate during invite-only
-  beta, remove in a dedicated cutover slice after real auth is verified
+- §2.4 `proxy.ts` disposition — keep as outer gate during invite-only beta, remove in a dedicated cutover slice after real auth is verified
 - §2.5 `target_creator_gender` — `profiles` default + per-request override
 - §2.7 Pricing — invite-only beta, Cameron eats cost, Sonnet 4.6 throughout
 - §2.8 Phase 3 perf feedback stays out of Phase 2
@@ -298,6 +265,96 @@ idempotency gates, migration hygiene, FK cascades, unique-index strategy,
 `search_corpus` RPC, citation-schema readiness for Phase 2 — all clean;
 server/client component boundaries clean; no path-traversal / CORS /
 secret-leakage risks.
+
+## Slice 9 shipped — what landed (2026-05-19)
+
+**Why this slice:** Cameron flagged after uploading 6 new videos that Groq Whisper was producing systematic misspellings of proper nouns and active-ingredient names — `Volufiline → Valofulin`, `Dr. Melaxin → dr millexon`, etc. These contaminate transcript text, transcript embeddings, citation rendering, and STEP 3's per-video ingredient extraction. Free-text brand/product fields on the upload form also created drift (`Dr Melaxin` vs `Dr. Melaxin` etc.). Slice 9 fixes both structurally: a normalized products catalog stops typo drift on metadata, and Groq's `prompt` parameter biases the decoder on each product's canonical ingredient list.
+
+### Migration `0012_products_catalog.sql`
+
+Applied to prod via Supabase MCP. DDL:
+
+- `brands(id, name unique, slug unique, created_at)`
+- `products(id, brand_id FK, name, slug, ingredients[], product_category[], brand_claims[], source_url, notes, timestamps, unique(brand_id, slug))`
+- `videos.product_id uuid` FK to `products` (`on delete set null`, nullable so the data migration can run before backfill + so missing-product uploads degrade to a generic Whisper prompt instead of crashing)
+- `slugify(text)` helper function (lowercase, runs of non-alphanumeric → single dash, trim leading/trailing dashes)
+
+Data backfill in the same migration: insert distinct brands + products from existing `videos.brand`/`videos.product_name` pairs, merge `active_ingredients` across same-product videos into `products.ingredients` (full INCI seed), set `videos.product_id` on all 9 embedded rows. A `do $$ begin ... raise exception ... end $$` block at the end aborts if any embedded video lacks `product_id` after the run.
+
+`videos.brand` + `videos.product_name` stay as **denormalized cache columns** — Slice 6's `search_corpus` RPC reads them, so this layer has no RPC signature change. The new `/api/products/[id]` PATCH route is the single writer that propagates renames into both cache columns on related videos.
+
+### Migration `0013_product_main_ingredients.sql`
+
+Applied separately (Slice 9.5 follow-up — see below). One column: `products.main_ingredients text[] not null default '{}'`. No data migration; Cameron curates manually post-deploy.
+
+### Pipeline rewire
+
+- **STEP 1 (`lib/pipeline/video.ts`):** loads `videos.product` (via FK) and selects `main_ingredients` if non-empty, else `ingredients`. Calls `buildWhisperPrompt({brand, productName, productIngredients, userNotes})` from `lib/pipeline/whisper-vocab.ts`. Result passed as `prompt:` to `groq.audio.transcriptions.create`. Falls back to a generic prompt (brand/product still passed if present) when `product_id` is null.
+- **STEP 3 (`lib/prompts/breakdown.ts`):** `metadata.canonical_ingredients` is the same list (passed once at the top of `processVideo`). `SYSTEM_PROMPT` gained a precise instruction block: *"The metadata block may include `canonical_ingredients` — the product's known INCI list from the catalog. Use it ONLY to disambiguate misspellings the transcriber may have produced... Do NOT copy the canonical list into `active_ingredients` wholesale — if the creator names 2 of 11 known ingredients, emit 2, not 11."* The advisor flagged this wording risk explicitly: without it Claude would either dump the full list or ignore it; the precise phrasing keeps it in spelling-correction lane only.
+
+### Whisper prompt builder (`lib/pipeline/whisper-vocab.ts`)
+
+Builds natural-language prompts (Whisper biases better on sentence form than comma lists). Format:
+
+```
+"This is a skincare product review for TikTok. The product is <brand>'s
+<productName>. The product contains: <ingredient list, hyphens → spaces,
+capped at 30 entries>. Context: <userNotes if present>. Common terms in
+this niche: niacinamide, retinol, hyaluronic acid, salicylic acid,
+glycolic acid, azelaic acid, vitamin C, ceramides, peptides, centella
+asiatica, panthenol, allantoin, spicule, Volufiline, K-beauty, PDRN,
+collagen."
+```
+
+The static tail (`COMMON_TERMS` in the file) is intentionally tight (~17 entries) to leave Whisper's 224-token budget for the per-product vocabulary. Grow as new niche vocabulary becomes recurrent across uploads.
+
+### /products admin page
+
+- **`app/products/page.tsx`** (server, `force-dynamic`): loads brands + products + per-product video counts; renders grouped by brand with a `ProductRow` per product.
+- **`app/products/product-row.tsx`**: collapsed by default with `"N main · M INCI · K videos"` chip; expanded form has separate textareas for `main_ingredients`, `ingredients`, `product_category`, `brand_claims`, plus `source_url` + `notes`. Comma- or newline-separated input; server normalizes via `lib/normalize-tokens.ts`.
+- **`app/products/new-product-form.tsx`**: collapsed → "+ New product" button; expanded form has a brand picker with inline "+ New brand" affordance (no workflow break to add brands).
+- **`app/api/products/route.ts`** POST: creates a product under an existing brand.
+- **`app/api/products/[id]/route.ts`** PATCH: updates the product. When `name` or `brand_id` changes, cascades the new brand_name + product_name into `videos.brand` + `videos.product_name` on related rows (the cache invariant; corpus_chunks.metadata doesn't carry these so no further propagation needed).
+- **`app/api/brands/route.ts`** POST: creates a brand (used by the inline affordance).
+
+### Upload form + inline editor pickers
+
+- **`app/(upload)/page.tsx`** (server): loads `products` + brand names, passes to `UploadCard`.
+- **`app/(upload)/upload-card.tsx`** (client): brand + product_name text inputs replaced with a single `<select>` grouped by brand via `<optgroup>`. "+ Manage products →" link to `/products` (opens new tab). `POST /api/videos` body now sends `productId` instead of `brand`/`productName`.
+- **`app/videos/[id]/editable-metadata.tsx`**: same picker pattern. PATCH body sends `product_id`.
+- **`app/api/videos/route.ts`** POST + **`app/api/videos/[id]/route.ts`** PATCH: accept `product_id`, look up the product, set `videos.product_id` + cache `videos.brand` + cache `videos.product_name` from the catalog. Free-text brand/product fields are no longer accepted in the request body — the picker is the only path.
+- **`app/layout.tsx`**: nav gains "Products" link.
+
+### Slice 9.5 follow-up (same session)
+
+The 91-INCI Dr. Melaxin Gifted Collagen Boost Set blew past Whisper's 224-token prompt budget. Split `products.ingredients` into:
+- `main_ingredients[]` — curated actives (≤15-20 typical), the pipeline biases on this
+- `ingredients[]` — full INCI deck (reference + fallback when `main_ingredients` is empty)
+
+Implementation:
+- Migration `0013_product_main_ingredients.sql` adds the column.
+- `/products` row gets a separate textarea for `main_ingredients` above the full INCI textarea. Header chip reads `"N main · M INCI · K videos"`.
+- POST + PATCH `/api/products` accept `main_ingredients`.
+- Pipeline STEP 1 prefers `main_ingredients`, falls back to `ingredients`. Same source flows through to STEP 3's `canonical_ingredients` metadata field.
+
+### Commits + deploys
+
+| Commit | Slice | Deploy | Notes |
+|---|---|---|---|
+| `bff8dd4` | Slice 9 main | `dpl_HB6ZSv1VQjixAHfkCdmonVh6x5uz` READY | Products catalog + Whisper biasing + UI rewire |
+| `f5026e0` | Slice 9.5 | `dpl_A7eNeAuVNtu25WpJrQ6ETXocVeTN` READY | main_ingredients split |
+
+### Curation pass observations (worth knowing for next session)
+
+When Cameron curated the first 3 products on `/products`, the full INCI (`ingredients[]`) ended up empty on those rows — looks like the curation pattern was to move content from the INCI textarea up into the `main_ingredients` textarea, then save. Cameron confirmed this is **intentional**: "don't care about full INCI." The retrieval path doesn't depend on `ingredients[]` anyway when `main_ingredients` is populated, so no fix needed. Future curation work should not assume both fields will be populated.
+
+### What's still pending after Slice 9
+
+See "Next concrete action" for the explicit 4-step sequence:
+1. Cameron: curate the 3 remaining products (BP Spicule, Gifted Boost Set, Laka)
+2. Cameron: canary upload to verify Whisper biasing works
+3. Agent: backfill all 9 videos (re-run STEP 1+ for each)
+4. Agent: post-backfill verification + STATUS sweep
 
 ## Slice 6 shipped — what landed
 
