@@ -11,6 +11,7 @@ import { normalizeTokens } from "@/lib/normalize-tokens";
 type Body = {
   brand_id?: string;
   name?: string | null;
+  main_ingredients?: string | string[];
   ingredients?: string | string[];
   product_category?: string | string[];
   brand_claims?: string | string[];
@@ -67,6 +68,7 @@ export async function PATCH(
   const nextBrandId = body.brand_id?.trim() || null;
 
   const update: Record<string, unknown> = {
+    main_ingredients: normalizeTokens(body.main_ingredients),
     ingredients: normalizeTokens(body.ingredients),
     product_category: normalizeTokens(body.product_category),
     brand_claims: normalizeTokens(body.brand_claims),

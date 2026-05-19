@@ -10,6 +10,7 @@ type ProductRowData = {
   id: string;
   brand_id: string;
   name: string;
+  main_ingredients: string[];
   ingredients: string[];
   product_category: string[];
   brand_claims: string[];
@@ -24,7 +25,7 @@ export default async function ProductsPage() {
     admin
       .from("products")
       .select(
-        "id, brand_id, name, ingredients, product_category, brand_claims, source_url, notes",
+        "id, brand_id, name, main_ingredients, ingredients, product_category, brand_claims, source_url, notes",
       )
       .order("name"),
     admin.from("videos").select("product_id").not("product_id", "is", null),
@@ -104,6 +105,7 @@ export default async function ProductsPage() {
                         id={p.id}
                         initialBrandId={p.brand_id}
                         initialName={p.name}
+                        initialMainIngredients={p.main_ingredients ?? []}
                         initialIngredients={p.ingredients ?? []}
                         initialProductCategory={p.product_category ?? []}
                         initialBrandClaims={p.brand_claims ?? []}

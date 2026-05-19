@@ -63,18 +63,24 @@ export async function processVideo({ videoId }: { videoId: string }): Promise<vo
 
   // Canonical product ingredients seed both the Whisper transcription prompt
   // (STEP 1) and the breakdown metadata block (STEP 3). Loaded once here so
-  // both steps see the same source of truth. Falls back to empty list when
-  // the video has no product_id — STEP 1 still gets brand/product/notes
-  // biasing; STEP 3 falls back to the legacy metadata-only prompt.
+  // both steps see the same source of truth.
+  //
+  // Prefer products.main_ingredients (curated actives) over the full INCI
+  // deck — the full deck blows past Whisper's 224-token prompt budget and
+  // gives Claude too much room to dump canonical names into per-video
+  // active_ingredients[]. Fall back to ingredients when main is empty so
+  // un-curated products still get some biasing.
   let productIngredients: string[] = [];
   if (video.product_id) {
     const { data: product, error: pErr } = await supabase
       .from("products")
-      .select("ingredients")
+      .select("main_ingredients, ingredients")
       .eq("id", video.product_id)
       .single();
     if (pErr) throw new Error(`product lookup failed: ${pErr.message}`);
-    productIngredients = (product?.ingredients as string[] | null) ?? [];
+    const main = (product?.main_ingredients as string[] | null) ?? [];
+    const full = (product?.ingredients as string[] | null) ?? [];
+    productIngredients = main.length > 0 ? main : full;
   }
 
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), `scripter-${videoId}-`));

@@ -10,6 +10,7 @@ export function ProductRow({
   id,
   initialBrandId,
   initialName,
+  initialMainIngredients,
   initialIngredients,
   initialProductCategory,
   initialBrandClaims,
@@ -21,6 +22,7 @@ export function ProductRow({
   id: string;
   initialBrandId: string;
   initialName: string;
+  initialMainIngredients: string[];
   initialIngredients: string[];
   initialProductCategory: string[];
   initialBrandClaims: string[];
@@ -32,6 +34,7 @@ export function ProductRow({
   const router = useRouter();
   const [brandId, setBrandId] = useState(initialBrandId);
   const [name, setName] = useState(initialName);
+  const [mainIngredients, setMainIngredients] = useState(initialMainIngredients.join(", "));
   const [ingredients, setIngredients] = useState(initialIngredients.join(", "));
   const [productCategory, setProductCategory] = useState(initialProductCategory.join(", "));
   const [brandClaims, setBrandClaims] = useState(initialBrandClaims.join(", "));
@@ -51,6 +54,7 @@ export function ProductRow({
         body: JSON.stringify({
           brand_id: brandId,
           name,
+          main_ingredients: mainIngredients,
           ingredients,
           product_category: productCategory,
           brand_claims: brandClaims,
@@ -70,10 +74,10 @@ export function ProductRow({
     }
   };
 
-  const ingredientCount = ingredients
-    .split(/[,\n]/)
-    .map((s) => s.trim())
-    .filter(Boolean).length;
+  const tokenCount = (s: string) =>
+    s.split(/[,\n]/).map((t) => t.trim()).filter(Boolean).length;
+  const mainCount = tokenCount(mainIngredients);
+  const ingredientCount = tokenCount(ingredients);
 
   return (
     <li className="py-4">
@@ -81,7 +85,7 @@ export function ProductRow({
         <div className="min-w-0">
           <div className="font-mono text-sm truncate">{initialName}</div>
           <div className="text-[10px] font-mono uppercase tracking-wide text-muted-foreground">
-            {ingredientCount} ingredient{ingredientCount === 1 ? "" : "s"} ·{" "}
+            {mainCount} main · {ingredientCount} INCI ·{" "}
             {videoCount} video{videoCount === 1 ? "" : "s"}
           </div>
         </div>
@@ -120,7 +124,16 @@ export function ProductRow({
               />
             </Field>
           </div>
-          <Field label="Ingredients (comma or newline separated)">
+          <Field label="Main ingredients — actives the pipeline biases on (≤15-20 typical)">
+            <textarea
+              value={mainIngredients}
+              onChange={(e) => setMainIngredients(e.target.value)}
+              rows={3}
+              placeholder="volufiline, hyaluronic-acid, peptides"
+              className="w-full px-3 py-2 rounded-md border bg-background text-sm font-mono resize-y"
+            />
+          </Field>
+          <Field label="Full INCI deck (reference — used as fallback when main is empty)">
             <textarea
               value={ingredients}
               onChange={(e) => setIngredients(e.target.value)}
