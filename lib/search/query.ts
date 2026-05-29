@@ -9,8 +9,8 @@ import { rankAndTrim, type RankInput } from "./rank";
 import { loadTrustMap } from "./trust";
 
 const EMBED_MODEL = "text-embedding-3-small";
-const RPC_K = 30;
-const FINAL_K = 10;
+const RPC_K_DEFAULT = 30;
+const FINAL_K_DEFAULT = 10;
 
 export type SourceTypeFilter = "video" | "knowledge" | null;
 
@@ -58,12 +58,24 @@ export type SearchRow = RankInput & {
 
 export type RankedResult = SearchRow & { final: number };
 
+export type SearchOptions = {
+  // Override default top-k. /search uses 10; script-gen prototype uses 20
+  // so the LLM has richer grounding without changing the search RPC contract.
+  finalK?: number;
+  // RPC fetches finalK * 3 by default (so re-rank can reshape the pool).
+  rpcK?: number;
+};
+
 export async function searchCorpus(
   query: string,
   filters: SearchFilters = {},
+  options: SearchOptions = {},
 ): Promise<RankedResult[]> {
   const trimmed = query.trim();
   if (!trimmed) return [];
+
+  const finalK = options.finalK ?? FINAL_K_DEFAULT;
+  const rpcK = options.rpcK ?? Math.max(RPC_K_DEFAULT, finalK * 3);
 
   const openai = new OpenAI();
   // Embed query + load trust map in parallel — both feed the same re-rank.
@@ -88,12 +100,12 @@ export async function searchCorpus(
     p_active_ingredient: filters.active_ingredient ?? null,
     p_function_claim: filters.function_claim ?? null,
     p_tonality: filters.tonality ?? null,
-    k: RPC_K,
+    k: rpcK,
   });
   if (error) throw new Error(`search_corpus RPC failed: ${error.message}`);
 
   const rows = (data ?? []) as SearchRow[];
-  return rankAndTrim(rows, trustMap, FINAL_K);
+  return rankAndTrim(rows, trustMap, finalK);
 }
 
 // Surfaces the filter pill options. Cheap (small distinct lists) — called from

@@ -1,41 +1,45 @@
 # skincare-scripter Phase 2 — Script Generator Plan
 
-> **Status: corpus-quality gate resolved; awaiting empirical `/search` grounding test (2026-05-17, refreshed 2026-05-29).**
-> Cameron's pivot during the §2 working session: *"perfect the brain"*
-> before building the script-gen surface. The three §2 questions (auth,
-> multi-tenancy, script contract) are all surface-level — they don't change
-> retrieval quality. **13 embedded videos** as of 2026-05-29 across 4 brands
-> and 12 products (12/12 curated). Slice 9 products catalog + Whisper biasing
-> shipped 2026-05-19; the 9-video backfill + 4-canary re-run closed out the
-> corpus-quality loop on 2026-05-29 (commit `56c0c0b`). The implicit fourth
-> gate ("is the brain good enough?") is now testable rather than presumed —
-> open `/search` and run representative script-gen queries against the
-> post-backfill corpus.
+> **Status: Slice 0 prototype scoped, in progress (2026-05-29).** The corpus-quality
+> loop closed out on 2026-05-29 (commit `56c0c0b`: 13 embedded videos, 4 brands × 12
+> products curated). Cameron has directed the project into the actual script-gen
+> build: a single-user testbed surface behind the existing `proxy.ts` Basic Auth gate,
+> separate from the auth-retrofit Slice 1 that PLAN_PHASE2 §8 originally specced as
+> "real" Slice 1.
 >
-> **Re-engagement sequence:**
-> 1. Cameron-side empirical test: run a handful of representative script-gen
->    queries against `/search` (suggestions in `STATUS.md` § "Next concrete
->    action"). Stress-test the new Slice 8 chunk_kinds (`tonality`,
->    `authenticity_signals`, `buyer_psych_levers`).
-> 2. If grounding quality is good → resolve §2.1-§2.3, fill in §8 slice
->    plan, start Phase 2 Slice 1.
-> 3. If grounding feels thin → identify failure mode (sparse coverage of a
->    chunk_kind, citation drift, off-topic top results) and decide whether
->    it's a Slice 10 corpus polish or a Phase 2 retrieval-tuning task.
+> **Architectural framing locked (2026-05-29):**
 >
-> The original framing — three load-bearing decisions (§2) that gate §6-§8 —
-> still stands. Nothing in §2 has been invalidated; the corpus side of the
-> gate is just resolved now.
+> The v0 surfaces (`/upload`, `/products`, `/knowledge`, `/search`) are the **backend brain**
+> — corpus building, ingestion, introspection. **`/search` is the brain inspector.**
+> Its job is "given a query, show me the matching corpus chunks." Literal-hook
+> retrieval is correct behavior, not a flaw to fix.
 >
-> **What Slice 9 pre-wires for Phase 2:** §2.3's "structured form"
-> recommendation now has a concrete entity to bind to. The script-gen form's
-> "Brand" + "Product" pickers map 1:1 to the `brands` + `products` tables
-> shipped in Slice 9. Each product carries a canonical `main_ingredients[]`
-> list — useful for the script-gen Claude prompt's grounding ("the affiliate
-> is writing about Medicube's PDRN Multi Balm, which contains Volufiline,
-> liposomal-PDRN, ..."). The catalog is the script-gen surface's natural
-> target entity, not a coincidence — building it for corpus-quality reasons
-> also collapsed §2.3's decision tree.
+> Phase 2 is a **separate UI surface (`/scripts`)** that consumes the brain via the
+> `search_corpus` RPC but with its own retrieval shape (product-filtered; chunk_kind-agnostic
+> retrieval) and an LLM prompt with a **synthesize-don't-imitate constraint** at
+> the prompt layer. Cameron's frame: *"These uploads are for the Script-gen to learn what
+> is working in the space to build a new strong viral script."* Literal hooks in the corpus
+> are training material for the synthesis prompt, not template content to regurgitate. The
+> constraint lives at the prompt layer, NOT by filtering high-copy-risk chunk_kinds
+> (`breakdown_summary`, `transcript_chunks`) out of retrieval.
+>
+> **The earlier framing (empirical `/search` grounding test as the Phase 2 gate) was a
+> category error** — treating `/search` as the script-gen retrieval layer. It isn't. The
+> grounding question is only answerable by building the script-gen surface and running
+> it.
+>
+> **Slice plan re-ordering (see §8):**
+>
+> | # | What ships |
+> |---|---|
+> | **0 (prototype)** | Smallest script-gen E2E. Behind existing `proxy.ts` (no auth retrofit). Single-user, no `profiles` / no `owner_id` / no RLS. Lets Cameron iterate empirically on retrieval shape + prompt wording. **In progress.** |
+> | **1 (auth retrofit)** | What §8 originally specced as Slice 1: Supabase Auth, `profiles.is_admin` gates on every existing ingestion/admin route, audit-finding cleanup. Block on Slice 0 validating the brain is good enough to invite real affiliates. |
+> | **2+** | Citations polish, trust-table tuning, variants, iterative refinement, proxy.ts cutover — per existing §8. |
+>
+> **What Slice 9 pre-wires for Phase 2 (still true):** The script-gen form's product picker
+> maps 1:1 to the `products` table shipped in Slice 9. Each product carries canonical
+> `main_ingredients[]` — useful for the script-gen Claude prompt's grounding context. The
+> catalog is the script-gen surface's natural target entity.
 
 ---
 
@@ -131,23 +135,37 @@ a terrible first-touch).
   (`user.created`); RLS uses a custom JWT claim, or scope at the app
   layer with the service role and trust the API gate.
 
-### 2.3 Script input/output contract — *load-bearing*
+### 2.3 Script input/output contract — *partially resolved (2026-05-29), iterating in Slice 0*
 
-Affects the Claude prompt, the request UI, and the `script_drafts` schema.
-Open dimensions:
+**Resolved direction (Cameron, 2026-05-29):** real affiliate requests look like
+*"I want a script for Medicube's Multi Balm"* / *"I want a script for Melaxin's
+Gifted Collagen Set with before-after suggestions"* / *"I want some viral hook
+ideas for the Spicy Lip Plumper"*. This is **structured (product) + free-text
+(intent)**, not pure structured form. Hybrid wins.
 
-**Input shape:**
+**Slice 0 input shape:**
+
+- **Product picker** (required) — same dropdown as `/upload`, grouped by brand
+- **Intent free-text** (required) — open textarea; future iteration may promote
+  recurring intent shapes ("viral hook ideas", "full script", "before-after
+  demo angle", "comment-reply CTA") to chip options
+- **Creator gender override** (optional, defaults to `unknown`) — three-button
+  toggle. Phase 2 Slice 1 adds `profiles.default_creator_gender` per §2.5; the
+  prototype just takes a per-request value.
+
+Free-form prompt as the only input was rejected because product-picker
+plus filter still wins recall vs trying to parse "Medicube Multi Balm"
+out of free-text + risk Whisper-style spelling drift. Pure structured form
+was rejected because intent ("viral hook ideas" vs "before-after demo") doesn't
+map cleanly to existing filter dimensions and pre-cataloguing it kills
+exploration.
+
+**Original analysis (history, do not re-litigate):**
 | Option | Affiliate provides |
 |---|---|
-| **Free-form prompt** | one text box: *"Hook for Medicube serum targeting men with adult acne"* |
-| **Structured form** | brand + product + target audience + framework (Hormozi value-equation, etc.) + optional hook angle + `target_creator_gender` |
-| **Hybrid** | structured form with a free-form "additional context" textarea |
-
-Recommendation: **structured form**, because it's also what the retrieval
-ranker needs — `brand`, `product_name`, `creator_gender`, `ai_tags`
-already exist as filters on `search_corpus` and the form maps 1:1.
-Free-form prompt forces a parsing step (LLM-call to extract structure)
-that adds cost and a failure mode.
+| Free-form prompt | one text box: *"Hook for Medicube serum targeting men with adult acne"* |
+| Structured form | brand + product + target audience + framework + hook angle + `target_creator_gender` |
+| **Hybrid** | structured (product picker + creator_gender) + free-text intent |
 
 **Output shape:**
 | Option | Returns |
@@ -493,23 +511,20 @@ Mark these as Slice 2+ — Slice 1 ships read-only drafts.
 
 ---
 
-## 8. SLICE PLAN — placeholder
+## 8. SLICE PLAN
 
-**Cannot be drafted concretely until §2.1, §2.2, §2.3 resolve.** Sketch
-assumes Branch A + Supabase Auth + structured form + single-draft output —
-revise once the open questions land:
-
-| # | What ships (provisional) |
+| # | What ships |
 |---|---|
-| 1 | Smallest E2E: Supabase Auth (OTP-code), `profiles` + `script_drafts` migration, single structured form → single script draft → render. proxy.ts stays as outer gate. **Plus: retrofit `profiles.is_admin` gates onto every existing ingestion/admin surface** — pages `/upload`, `/knowledge`, `/trust`, and API routes `POST /api/videos`, `POST /api/knowledge`, `POST /api/uploads/sign`, `POST /api/uploads/sign-knowledge`, both retry routes, `PATCH /api/videos/[id]`, `/trust` writes. **Plus: fold in the pre-Phase-2 audit findings** (raw-error leakage, stack-trace truncation, posted_at validation, admin-client cleanups, rate limiting, type generation, `app/error.tsx`, `parseSearchParams` helper) — full list with file:line refs in `STATUS.md` § "Pre-Phase-2 audit findings". That's the real Slice 1 size — auth retrofit + audit cleanup is bigger than the script-gen surface itself. Consider splitting if it bloats. |
-| 2 | Citations: persist + render which chunks informed which beats. Trust-table tuning pass (Cameron sets real weights via `/trust`). |
+| **0 (prototype, in progress 2026-05-29)** | Single-user script-gen surface behind existing `proxy.ts`. `/scripts` form (product picker + creator_gender + intent textarea) → `POST /api/scripts/generate` → product-filtered retrieval via existing `searchCorpus()` → Claude Sonnet 4.6 with synthesize-don't-imitate prompt → structured script + citations rendered. Migration `0014_script_drafts.sql` with NO `owner_id` / NO RLS (single-user testbed). Same shape as v0 Slice 1: smallest possible E2E so Cameron can iterate empirically on retrieval shape + prompt wording. Ship criterion: Cameron picks PDRN Multi Balm + "viral hook ideas" + female, hits Generate, gets a synthesized script grounded in actual corpus material with citations he can click through. |
+| 1 | Auth retrofit + audit cleanup. Supabase Auth (OTP-code per [[feedback-email-link-prefetch]]), `profiles` migration adds `default_creator_gender` + `is_admin`, `script_drafts.owner_id` added + backfilled + RLS enabled. **Retrofit `profiles.is_admin` gates onto every existing ingestion/admin surface** — pages `/upload`, `/knowledge`, `/trust`, `/products`, and API routes `POST /api/videos`, `POST /api/knowledge`, `POST /api/uploads/sign`, `POST /api/uploads/sign-knowledge`, both retry routes, `PATCH /api/videos/[id]`, `PATCH /api/products/[id]`, `POST /api/products`, `POST /api/brands`, `/trust` writes. **Plus: fold in pre-Phase-2 audit findings** (raw-error leakage, stack-trace truncation, posted_at validation, admin-client cleanups, rate limiting, type generation, `app/error.tsx`, `parseSearchParams` helper) — full list with file:line refs in `STATUS.md` § "Pre-Phase-2 audit findings". `proxy.ts` stays as outer gate during this slice. Block on Slice 0 validating the brain is good enough to invite real affiliates. |
+| 2 | Citations polish: ensure every cited `chunk_id` ∈ retrieved set (server-side validation), render citations as clickable deep-links into `/videos/[id]?t=N` / `/knowledge/[id]?chunk=N`. Trust-table tuning pass (Cameron sets real weights via `/trust`). |
 | 3 | Variants: 2-3 drafts per request, different hook tactics. May warrant Haiku 4.5 for the secondary variants per §2.7. |
 | 4 | Iterative refinement: "regenerate hook" / "tighten CTA" buttons that re-call Claude with prior draft as context. |
 | 5 | proxy.ts removal slice: incognito-test real auth on prod, then remove the proxy. (Per §2.4.) |
 
-Slice 1 ship criterion analogue to v0 Slice 1: an authenticated affiliate
-submits the form, sees a structured script rendered, and Cameron (admin)
-can see the draft in the database.
+Slice 0 ship criterion (current): Cameron submits the form on prod (or local dev), sees a structured script rendered with grounded citations, and can iterate on retrieval shape + prompt by editing code without touching schema. The first iterations will surface concrete questions about chunk_kind weighting, knowledge surfacing, structural-chunk density per product — none of which can be answered without a live surface.
+
+Slice 1 ship criterion (future): an authenticated affiliate submits the form, sees a structured script rendered, and Cameron (admin) can see the draft in the database with `owner_id` correctly set under RLS.
 
 ---
 

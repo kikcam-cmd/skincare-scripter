@@ -6,7 +6,11 @@ Rolling session-handoff doc. Read this first when picking up the project — it 
 
 ## Where we are right now
 
-**Phase:** v0 corpus + **Slice 9 products catalog + Slice 9.5 main_ingredients split + Slice 9 backfill** complete. **13 embedded videos across 4 brands and 12 products.** Pipeline is product-aware end-to-end: every upload picks a product from a dropdown, Whisper's transcription prompt biases on that product's canonical `main_ingredients`, and STEP 3 receives the canonical list as a spelling-correction reference (without permission to dump wholesale into per-video extraction). All 9 pre-Slice-9 videos backfilled with the new prompt + STEP 3 wording on 2026-05-29; the 4 same-day canaries were re-run after a one-line `Korean` addition to the Whisper static tail. **Phase 2 script-gen re-engagement bar (`/search` grounding quality on the post-backfill corpus) is the immediate next decision.**
+**Phase:** v0 corpus + **Slice 9 products catalog + Slice 9.5 main_ingredients split + Slice 9 backfill** complete. **13 embedded videos across 4 brands and 12 products.** Pipeline is product-aware end-to-end: every upload picks a product from a dropdown, Whisper's transcription prompt biases on that product's canonical `main_ingredients`, and STEP 3 receives the canonical list as a spelling-correction reference (without permission to dump wholesale into per-video extraction). All 9 pre-Slice-9 videos backfilled with the new prompt + STEP 3 wording on 2026-05-29; the 4 same-day canaries were re-run after a one-line `Korean` addition to the Whisper static tail. **Phase 2 Slice 0 (script-gen prototype) is the next concrete build.**
+
+**Architectural framing locked (2026-05-29):** the v0 surfaces (`/upload`, `/products`, `/knowledge`, `/search`) are the **backend brain** — corpus building, ingestion, introspection. `/search` is the brain inspector; literal-hook retrieval is its job, not a flaw. **Phase 2 is a separate UI surface** (`/scripts`) that consumes the brain via the `search_corpus` RPC but with its own retrieval shape (product-filtered, no chunk_kind weighting at the retrieval layer) and an LLM prompt with a **synthesize-don't-imitate constraint** — Cameron's frame: *"These uploads are for the Script-gen to learn what is working in the space to build a new strong viral script."* Literal hooks in the corpus are training material, not template content. The constraint lives at the prompt layer, not by filtering chunk_kinds out of retrieval.
+
+**The earlier framing (empirical `/search` grounding test as the Phase 2 gate) was a category error** — `/search` retrieval quality is a corpus-health check (which passed: 9 of 10 results topical, healthy chunk_kind spread). Whether script-gen actually generates useful scripts is only answerable by building the script-gen surface and running it. Phase 2 §2.1 (multi-tenancy) and §2.2 (auth provider) don't need to resolve before a single-user prototype; §2.3 (script contract) is empirically resolved through prototype iteration.
 
 **Why Slice 9 happened (2026-05-19):** Cameron flagged transcription misrecognitions on the new batch of uploads — Whisper was producing "Volufiline → Valofulin", "Dr. Melaxin → dr millexon", and similar drift on proper nouns + active-ingredient names. These misspellings contaminate transcript embeddings and feed into STEP 3's extraction. Two structural fixes shipped together:
 1. **Products catalog** (`brands` + `products` tables, `videos.product_id` FK) replaces free-text brand + product_name fields with a dropdown picker. Stops typo drift, and gives every video a stable FK to canonical product data.
@@ -55,7 +59,7 @@ Both got short `main_ingredients` lists; the project's positioning may shift fro
 - ✓ Insurance dump at `db/backfill/0012_pre_rerun.json` (the dropped pre-backfill values, in case any AI-derived field needs forensic comparison).
 - ✓ Manual TikTok-shop category stamp `moisturizers-and-mists` on `d5240f30` re-applied post-backfill (Claude can't derive it from video content).
 
-**Last updated:** 2026-05-29 (Slice 9 backfill complete + canary re-run; products curation 12/12; `Korean` added to Whisper static tail)
+**Last updated:** 2026-05-29 (Phase 2 Slice 0 shipped + smoke-tested with 4 drafts; Slice 0.1 prompt fix for framework-lift + Slice 0.2 dual-password tester gate landed for invite-only beta)
 
 ## Read these in order
 
@@ -115,39 +119,41 @@ Numbered list from `PLAN.md` "Risks & open questions". Resolutions noted; left h
 
 ## Next concrete action
 
-**Phase 2 re-engagement decision.** The Slice 9 backfill closed the corpus-quality loop; the binding constraint per PLAN_PHASE2 §2 is now empirical: does `/search` return useful grounding material for a representative script-gen request?
+**Build Phase 2 Slice 0 — script-gen prototype.** Single-user testbed behind the existing `proxy.ts` Basic Auth gate. No auth retrofit, no `profiles` table, no multi-tenancy — those are pre-prod gates, not pre-testing gates. The whole point is to get a script-gen surface running so Cameron can iterate on retrieval shape + prompt wording empirically.
 
-### 1. Empirical grounding test (Cameron-side, low effort)
+### Slice 0 scope (sketch — confirm contract with Cameron first)
 
-Open `/search` and run a handful of representative script-gen queries against the post-backfill corpus. Suggestions:
-- "viral hook ideas for an under-eye anti-aging balm targeting 40+ women"
-- "comment-reply format CTAs that drive flash-sale urgency"
-- "nurse-creator authority signals for medical-grade ingredients"
-- "before-after demos that work without makeup contamination"
+- **Page:** `/scripts` (form) + `/scripts/[id]` (result). Form = product picker (reuse upload dropdown), creator_gender 3-button toggle, intent textarea ("viral hook ideas" / "before-after demo angle" / "comment-reply CTA" / free-text), Generate button.
+- **API:** `POST /api/scripts/generate` — Node runtime, `maxDuration ~120`. Accepts `{ product_id, intent, creator_gender }`. Inserts `script_drafts` row (status='retrieving'), runs retrieval + Claude in same lifetime via `after()` from `next/server`, persists result.
+- **Retrieval:** `searchCorpus(intent, { product_name, creator_gender })` from `lib/search/query.ts` — already supports product filter. Top-k = 20 (richer than `/search`'s 10). Knowledge chunks (Cialdini) included naturally via existing rank.
+- **LLM:** Claude Sonnet 4.6, structured tool-call output. **Synthesize-don't-imitate prompt:** *"Ground in these patterns; do not reproduce any phrase verbatim; cite which video taught you which lever."* Same wording-risk shape as Slice 9's `canonical_ingredients` instruction — likely the load-bearing prompt design call.
+- **Output shape (default candidate, confirm):** single structured script — hook / problem / twist / solution / cta + tonality + pacing_notes + visual_direction + ai_tags + citations[{ chunk_id, kind, text_excerpt }]. From PLAN_PHASE2 §2.3 candidate.
+- **DB:** `script_drafts` migration (`0014_script_drafts.sql`) — drop the `owner_id` + RLS for prototype; add back when auth lands. Other columns per PLAN_PHASE2 §4.
+- **Polish (later slices):** auth retrofit + audit cleanup (PLAN_PHASE2 §8 "real" Slice 1), variants, iterative refinement, proxy.ts cutover. None of that gates testing.
 
-For each: do the top 5 results look like material you'd actually want a script-gen LLM to ground on? Do citations land on the right video/chunk? Pick at least one query per chunk_kind (`buyer_psych_levers`, `tonality`, `authenticity_signals`) to stress-test Slice 8's new retrieval surfaces.
+### Open non-blockers worth filing if surfaced during prototype iteration
 
-If grounding quality is good enough → resolve PLAN_PHASE2 §2's three open questions (multi-tenancy, auth provider, script contract) and kick Phase 2 slice planning.
-
-If grounding feels thin → identify the failure mode (sparse coverage of a chunk_kind, citation drift, off-topic top results) and decide whether it's a Slice 10 corpus polish task or a Phase 2 retrieval-tuning task.
-
-### 2. Open non-blockers worth filing if surfaced during the grounding test
-
-- **Catalog broadening.** Dr. Dent + Medicube Deodorant push past pure skincare. If grounding spans these, revisit positioning (skincare-scripter vs K-beauty-affiliate-scripter).
+- **Catalog broadening.** Dr. Dent + Medicube Deodorant push past pure skincare. If script-gen spans these, revisit positioning (skincare-scripter vs K-beauty-affiliate-scripter).
 - **Filter-dimension graduates.** Per [[feedback-skincare-scripter-filter-suggestions]], watch the post-backfill `ai_tags` for clusters that should become structured filter dimensions (e.g. "nurse-creator-authority", "filler-dupe-positioning", "tiktok-shop-orange-card-cta" all repeat across 3+ videos).
+- **Per-product structural-chunk density.** A product with low chunk count (1 video × N kinds) may not have enough pattern fuel to synthesize. Measure when iterating — informs which products the invite-only beta can launch with.
 - **Residual Whisper drift (acceptable, document only).** `f5d9a290` opening still hears `Kareem's` instead of `Koreans` (acoustic ambiguity Whisper doesn't bridge); 1× `Mellaxin` slip on the same video. Cameron's principle: don't force.
 
 ---
 
-**Phase 2 script-gen surface (PLAN_PHASE2) now unblocked at the corpus level.** The catalog pre-wires PLAN_PHASE2 §2.3's "structured form" recommendation — affiliate's product picker maps 1:1 to the products table. The three load-bearing §2 questions (multi-tenancy, auth provider, script contract) still gate slice planning, but the empirical grounding bar that was the *implicit* fourth gate is now testable.
-
-As corpus grows, watch for filter dimensions that should graduate to structured fields (per [[feedback-skincare-scripter-filter-suggestions]] — flag them proactively with evidence, not just suggestion).
-
-Already pre-decided in PLAN_PHASE2 (no Cameron action needed):
-- §2.4 `proxy.ts` disposition — keep as outer gate during invite-only beta, remove in a dedicated cutover slice after real auth is verified
-- §2.5 `target_creator_gender` — `profiles` default + per-request override
+**Already pre-decided in PLAN_PHASE2 (no Cameron action needed):**
+- §2.4 `proxy.ts` disposition — keep as outer gate through Slice 0 + the invite-only beta, remove in a dedicated cutover slice after real auth is verified
+- §2.5 `target_creator_gender` — `profiles` default + per-request override (Slice 0 skips the profile, just takes per-request)
 - §2.7 Pricing — invite-only beta, Cameron eats cost, Sonnet 4.6 throughout
 - §2.8 Phase 3 perf feedback stays out of Phase 2
+
+**Resolved by Slice 0 framing (2026-05-29):**
+- §2.3 input shape: **product picker + free-text intent + creator_gender override.** Structured-form-with-free-text-context hybrid. Pure structured form was the §2.3 recommendation; Cameron's articulation of real queries ("I want a script for Medicube's Multi Balm" / "viral hook ideas for the Spicy Lip Plumper") is structured-plus-intent, not pure structure.
+- §2.3 output shape: **single structured script (Slice 0)**, variants deferred to a follow-up slice. Same v0-style "smallest E2E" discipline.
+
+**Still gating (resolve when prototype validates the brain is good enough to open to real affiliates):**
+- §2.1 multi-tenancy (likely Branch A — shared corpus, per-user drafts)
+- §2.2 auth provider (likely Supabase Auth with OTP codes)
+- §2.3 input refinement based on Slice 0 usage (intent chips vs free-text, etc.)
 
 Open follow-ups from v0 (non-blocking, all could roll into Phase 2 if
 they bite):
