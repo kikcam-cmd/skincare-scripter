@@ -59,7 +59,7 @@ Both got short `main_ingredients` lists; the project's positioning may shift fro
 - ✓ Insurance dump at `db/backfill/0012_pre_rerun.json` (the dropped pre-backfill values, in case any AI-derived field needs forensic comparison).
 - ✓ Manual TikTok-shop category stamp `moisturizers-and-mists` on `d5240f30` re-applied post-backfill (Claude can't derive it from video content).
 
-**Last updated:** 2026-05-29 (Phase 2 Slice 0 shipped + smoke-tested with 4 drafts; Slice 0.1 prompt fix for framework-lift + Slice 0.2 dual-password tester gate landed for invite-only beta)
+**Last updated:** 2026-05-29 (Phase 2 Slice 0 shipped + smoke-tested with 4 drafts; Slice 0.1 framework-lift instruction; Slice 0.2 auth model finalized as public-scripter / admin-backend — /scripts/new + /scripts/[id] + /api/scripts/* open, everything else admin-only via APP_PASSWORD)
 
 ## Read these in order
 

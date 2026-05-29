@@ -25,11 +25,11 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const h = await headers();
-  // proxy.ts sets x-skincare-role. Default to admin so anything bypassing
-  // the proxy (shouldn't happen in prod given the matcher) doesn't silently
-  // degrade to tester UI.
-  const role = h.get("x-skincare-role") === "tester" ? "tester" : "admin";
-  const isAdmin = role === "admin";
+  // proxy.ts sets x-skincare-role=admin when admin creds are verified.
+  // Public visitors hit /scripts/* with no header → public mode → minimal
+  // nav. Admin paths require the header (proxy enforces) so the layout
+  // only sees role=admin or no-role.
+  const isAdmin = h.get("x-skincare-role") === "admin";
 
   return (
     <html

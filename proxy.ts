@@ -2,35 +2,46 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { timingSafeEqual } from 'node:crypto'
 
-// Slice 0.2 dual-password gate.
+// Public scripter, admin backend.
 //
-// APP_PASSWORD — admin (Cameron). Full access to every surface.
-// TESTER_PASSWORD — invited tester. Access ONLY to /scripts and /api/scripts;
-//   /scripts list redirects to /scripts/new (history is admin-only).
+// Public (no auth):
+//   /scripts/new           — form
+//   /scripts/[id]          — result page
+//   /api/scripts/*         — generation endpoint
 //
-// Both compares run unconditionally (no short-circuit) so timing doesn't
-// reveal which password matched. proxy passes role to RSC via header.
+// Admin (APP_PASSWORD required):
+//   /scripts               — drafts list (history view, admin tool)
+//   /, /upload, /products, /knowledge, /search, /trust, all other /api/*
+//
+// Admin Basic Auth on public paths is OPTIONAL: when the browser sends
+// cached admin creds, proxy verifies and tags the request with
+// x-skincare-role so the layout shows the full admin nav. Public visitors
+// without creds pass through with no role tag.
 
-const TESTER_PREFIXES = ['/scripts', '/api/scripts']
+function isPublicPath(pathname: string): boolean {
+  // /scripts (exact) is admin-only — drafts list. Subpaths are public.
+  if (pathname === '/scripts') return false
+  if (pathname.startsWith('/scripts/')) return true
+  if (pathname.startsWith('/api/scripts/')) return true
+  return false
+}
 
-function timingSafe(a: string, b: string): boolean {
-  const bufA = Buffer.from(a)
-  const bufB = Buffer.from(b)
+function adminAuthFromHeader(
+  header: string,
+  expected: string,
+): boolean {
+  if (!header.startsWith('Basic ')) return false
+  const decoded = atob(header.slice('Basic '.length))
+  const idx = decoded.indexOf(':')
+  const password = idx === -1 ? '' : decoded.slice(idx + 1)
+  const bufA = Buffer.from(password)
+  const bufB = Buffer.from(expected)
   if (bufA.length !== bufB.length) return false
   return timingSafeEqual(bufA, bufB)
 }
 
-function pathAllowedForTester(pathname: string): boolean {
-  return TESTER_PREFIXES.some(
-    (p) => pathname === p || pathname.startsWith(p + '/'),
-  )
-}
-
 export function proxy(request: NextRequest) {
   const adminPw = process.env.APP_PASSWORD
-  // Tester password is optional. If unset, only admin path exists.
-  const testerPw = process.env.TESTER_PASSWORD ?? ''
-
   if (!adminPw) {
     return new NextResponse('Auth misconfigured: APP_PASSWORD not set', {
       status: 503,
@@ -38,24 +49,24 @@ export function proxy(request: NextRequest) {
     })
   }
 
+  const pathname = request.nextUrl.pathname
   const header = request.headers.get('authorization') ?? ''
-  let role: 'admin' | 'tester' | null = null
+  const isAdmin = adminAuthFromHeader(header, adminPw)
 
-  if (header.startsWith('Basic ')) {
-    const decoded = atob(header.slice('Basic '.length))
-    const idx = decoded.indexOf(':')
-    const password = idx === -1 ? '' : decoded.slice(idx + 1)
-
-    // Run both compares unconditionally — no early return on first match,
-    // so timing doesn't leak which password the request was probing.
-    const isAdmin = timingSafe(password, adminPw)
-    const isTester = testerPw.length > 0 && timingSafe(password, testerPw)
-
-    if (isAdmin) role = 'admin'
-    else if (isTester) role = 'tester'
+  if (isPublicPath(pathname)) {
+    // Open to everyone. Tag the request with role=admin if admin creds
+    // were sent so the layout can show the full nav for Cameron browsing
+    // the public surface.
+    if (isAdmin) {
+      const requestHeaders = new Headers(request.headers)
+      requestHeaders.set('x-skincare-role', 'admin')
+      return NextResponse.next({ request: { headers: requestHeaders } })
+    }
+    return NextResponse.next()
   }
 
-  if (!role) {
+  // Admin-only path: require valid admin creds.
+  if (!isAdmin) {
     return new NextResponse('Authentication required', {
       status: 401,
       headers: {
@@ -65,26 +76,8 @@ export function proxy(request: NextRequest) {
     })
   }
 
-  const pathname = request.nextUrl.pathname
-
-  if (role === 'tester') {
-    // Block tester from non-script paths
-    if (!pathAllowedForTester(pathname)) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/scripts/new'
-      return NextResponse.redirect(url)
-    }
-    // The /scripts list is admin-only — testers land on the form
-    if (pathname === '/scripts') {
-      const url = request.nextUrl.clone()
-      url.pathname = '/scripts/new'
-      return NextResponse.redirect(url)
-    }
-  }
-
-  // Pass role to downstream so layout/pages can branch UI.
   const requestHeaders = new Headers(request.headers)
-  requestHeaders.set('x-skincare-role', role)
+  requestHeaders.set('x-skincare-role', 'admin')
   return NextResponse.next({ request: { headers: requestHeaders } })
 }
 
