@@ -1,5 +1,16 @@
 # 0010 + 0011 brain-quality backfill runbook
 
+> **Status: superseded by the Slice 9 backfill (2026-05-29).** The 9-video
+> Slice 9 backfill was a strict superset of this runbook's 3-video scope
+> (the 3 original videos `d21d7f8b` / `5d44a1de` / `d5240f30` were included)
+> and applied both the Slice 8 brain-quality fixes *and* the Slice 9
+> product-aware Whisper biasing in one pass. The insurance dump from that
+> run lives at `db/backfill/0012_pre_rerun.json`; the per-step execution is
+> documented in `STATUS.md` § "Slice 9 backfill + canary re-run complete
+> (2026-05-29)". This file is kept for archaeology only.
+
+---
+
 Re-extract the 3 surviving embedded videos under the new prompt + schema
 from migrations `0010_brain_quality.sql` + `0011_product_category_array.sql`.
 They were originally analyzed under the Slice 5.5 prompt; the new prompt

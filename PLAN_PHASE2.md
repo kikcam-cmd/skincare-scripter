@@ -1,18 +1,31 @@
 # skincare-scripter Phase 2 — Script Generator Plan
 
-> **Status: deferred pending corpus growth + backfill (2026-05-17, refreshed 2026-05-19).**
+> **Status: corpus-quality gate resolved; awaiting empirical `/search` grounding test (2026-05-17, refreshed 2026-05-29).**
 > Cameron's pivot during the §2 working session: *"perfect the brain"*
 > before building the script-gen surface. The three §2 questions (auth,
 > multi-tenancy, script contract) are all surface-level — they don't change
-> retrieval quality. **9 embedded videos** as of 2026-05-19 (Slice 9 products
-> catalog + Whisper biasing shipped), but transcript quality won't be reliable
-> across the corpus until the post-Slice-9 backfill runs. This doc re-engages
-> after backfill completes and `/search` returns the right grounding material
-> for representative requests.
+> retrieval quality. **13 embedded videos** as of 2026-05-29 across 4 brands
+> and 12 products (12/12 curated). Slice 9 products catalog + Whisper biasing
+> shipped 2026-05-19; the 9-video backfill + 4-canary re-run closed out the
+> corpus-quality loop on 2026-05-29 (commit `56c0c0b`). The implicit fourth
+> gate ("is the brain good enough?") is now testable rather than presumed —
+> open `/search` and run representative script-gen queries against the
+> post-backfill corpus.
+>
+> **Re-engagement sequence:**
+> 1. Cameron-side empirical test: run a handful of representative script-gen
+>    queries against `/search` (suggestions in `STATUS.md` § "Next concrete
+>    action"). Stress-test the new Slice 8 chunk_kinds (`tonality`,
+>    `authenticity_signals`, `buyer_psych_levers`).
+> 2. If grounding quality is good → resolve §2.1-§2.3, fill in §8 slice
+>    plan, start Phase 2 Slice 1.
+> 3. If grounding feels thin → identify failure mode (sparse coverage of a
+>    chunk_kind, citation drift, off-topic top results) and decide whether
+>    it's a Slice 10 corpus polish or a Phase 2 retrieval-tuning task.
 >
 > The original framing — three load-bearing decisions (§2) that gate §6-§8 —
-> still stands. Nothing in §2 has been invalidated; we just need to know
-> whether the brain works before deciding how to wrap a UX around it.
+> still stands. Nothing in §2 has been invalidated; the corpus side of the
+> gate is just resolved now.
 >
 > **What Slice 9 pre-wires for Phase 2:** §2.3's "structured form"
 > recommendation now has a concrete entity to bind to. The script-gen form's
