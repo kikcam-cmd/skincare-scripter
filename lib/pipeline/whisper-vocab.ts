@@ -43,6 +43,7 @@ const COMMON_TERMS = [
   "spicule",
   "Volufiline",
   "K-beauty",
+  "Korean",
   "PDRN",
   "collagen",
 ];

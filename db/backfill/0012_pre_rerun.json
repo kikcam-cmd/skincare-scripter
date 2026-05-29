@@ -1,0 +1,94 @@
+[
+  {
+    "id": "d21d7f8b-661d-4b9d-abc3-82f1ffa2b618",
+    "filename": "7633593829181902094.mp4",
+    "brand": "Medicube",
+    "product": "Zero Pore Blackhead Mud Mask",
+    "product_category": ["face-mask"],
+    "active_ingredients": ["aha", "bha", "pha", "bentonite", "kaolin", "canadian-colloidal-clay"],
+    "function_claims": [],
+    "ai_tags": ["mud-mask", "pore-blackhead", "sensitive-skin", "cosmetic-result-demo", "disgust-proof-reveal", "fomo-scarcity-cta", "teen-male-creator", "gen-z-audience", "foryoupage-social-proof", "ugc-style"]
+  },
+  {
+    "id": "5d44a1de-53a1-4af4-862f-fdfee90c5de2",
+    "filename": "7624255377462332703.mp4",
+    "brand": "Dr. Melaxin",
+    "product": "BP Spicule Plumping Lip Shot",
+    "product_category": ["lip-plumper", "lipstick-and-lip-gloss"],
+    "active_ingredients": ["vanillyl-butyl-ether", "menthyl-lactate", "shea-butter", "sodium-hyaluronate", "palmitoyl-hexapeptide-12", "hydrolyzed-sponge"],
+    "function_claims": ["plumping", "anti-wrinkle"],
+    "ai_tags": ["lip-plumper", "dr-melaxin", "korean-skincare", "before-after-demo", "spicule-technology", "filler-dupe-positioning", "comment-reply-format", "time-lapse-application", "scarcity-urgency-cta", "gen-z-female-audience"]
+  },
+  {
+    "id": "d5240f30-86c6-4dd5-882b-b59b04b90db9",
+    "filename": "7617148652519230750.mp4",
+    "brand": "Dr. Melaxin",
+    "product": "Calcium Multi Balm",
+    "product_category": ["moisturizers-and-mists"],
+    "active_ingredients": ["calcium", "adenosine", "glutathione", "collagen", "elastin"],
+    "function_claims": ["anti-aging", "sagging", "wrinkles"],
+    "ai_tags": ["under-eye-treatment", "korean-skincare", "dark-circles", "anti-aging-balm", "concealer-replacement", "skeptic-turned-believer", "car-confessional-format", "ugc-style-ad", "female-beauty-audience", "flash-sale-urgency"],
+    "manual_stamp_note": "product_category=moisturizers-and-mists is Cameron's TikTok-shop manual stamp; Claude cannot derive from video content. Re-stamp after backfill."
+  },
+  {
+    "id": "86c06b78-ee9f-44ff-842f-fb9910e3ecf2",
+    "filename": "7628775782449433870.mp4",
+    "brand": "Medicube",
+    "product": "PDRN Pink Collagen Volume Multi Balm",
+    "product_category": ["volufiline-multi-balm"],
+    "active_ingredients": ["5%-volufiline", "liposomal-pdrn", "200-dalton-collagen", "nad", "liposomal-egf", "peptides", "elastin", "retinol", "caffeine", "vitamin-e", "hyaluronic-acid"],
+    "function_claims": ["plumping", "firming", "anti-aging", "brightening", "lip-care", "hydration", "smoothing"],
+    "ai_tags": ["ugc-style", "nurse-creator-authority", "ingredient-education-format", "before-after-demo", "korean-beauty-trend", "comment-screenshot-social-proof", "stack-routine-recommendation", "no-makeup-authenticity-signal", "filler-dupe-positioning", "40-plus-anti-aging-audience"]
+  },
+  {
+    "id": "0ec8aa90-f964-408f-89f4-6008df90d54e",
+    "filename": "7631027139160067342.mp4",
+    "brand": "Medicube",
+    "product": "PDRN Pink Collagen Volume Multi Balm",
+    "product_category": ["volufiline-multi-balm"],
+    "active_ingredients": ["5%-volufiline", "liposomal-pdrn", "200-dalton-collagen", "nad", "liposomal-egf", "peptides", "elastin", "retinol", "caffeine", "vitamin-e", "hyaluronic-acid"],
+    "function_claims": ["plumping", "firming", "anti-aging", "brightening", "lip-care", "hydration", "smoothing"],
+    "ai_tags": ["car-confessional-format", "nurse-authority-persona", "millennial-female-audience", "ugc-style", "ingredient-education-format", "viral-trend-correction-hook", "tiktok-shop-orange-card-cta", "social-proof-screenshot-overlay", "anti-aging-audience", "product-form-factor-as-hero"]
+  },
+  {
+    "id": "67009846-c59b-403b-a387-1731566e1e3a",
+    "filename": "7626513503393795342.mp4",
+    "brand": "Medicube",
+    "product": "PDRN Pink Collagen Volume Multi Balm",
+    "product_category": ["volufiline-multi-balm"],
+    "active_ingredients": ["5%-volufiline", "liposomal-pdrn", "200-dalton-collagen", "nad", "liposomal-egf", "peptides", "elastin", "retinol", "caffeine", "vitamin-e", "hyaluronic-acid"],
+    "function_claims": ["plumping", "firming", "anti-aging", "brightening", "lip-care", "hydration", "smoothing"],
+    "ai_tags": ["fake-complaint-hook", "reverse-sell-open-loop", "ugc-style", "unboxing-moment", "ingredient-authority-build", "sale-urgency-reveal", "duo-bundle-pitch", "sensory-texture-closeup", "bare-skin-authenticity", "fomo-close"]
+  },
+  {
+    "id": "23b2bbac-500e-4ceb-be2e-bfea746374a0",
+    "filename": "7620230242828881166.mp4",
+    "brand": "Medicube",
+    "product": "PDRN Pink Collagen Volume Multi Balm",
+    "product_category": ["volufiline-multi-balm"],
+    "active_ingredients": ["5%-volufiline", "liposomal-pdrn", "200-dalton-collagen", "nad", "liposomal-egf", "peptides", "elastin", "retinol", "caffeine", "vitamin-e", "hyaluronic-acid"],
+    "function_claims": ["plumping", "firming", "anti-aging", "brightening", "lip-care", "hydration", "smoothing"],
+    "ai_tags": ["millennial-female-audience", "ingredient-education-format", "research-screenshot-proof-stacking", "ugc-style", "insider-secret-hook", "anti-needle-positioning", "k-beauty-authority-transfer", "comment-reply-social-proof", "bundle-upsell-close", "home-setting-confessional"]
+  },
+  {
+    "id": "e2afe5c7-fbb5-47c2-9a62-b77109be8e6c",
+    "filename": "7639592737850805518.mp4",
+    "brand": "Laka",
+    "product": "Spicy Lip Plumper",
+    "product_category": ["lip-plumper", "lip-gloss", "lipstick-and-lip-gloss"],
+    "active_ingredients": ["polybutene", "hydrogenated-polyisobutene", "diisostearyl-malate", "octyldodecanol", "vanillyl-butyl-ether", "silica-dimethyl-silylate", "dextrin-palmitate", "ethylene/propylene/styrene-copolymer", "glyceryl-caprylate", "flavor", "methyl-nicotinate", "dehydroacetic-acid", "butylene/ethylene/styrene-copolymer", "canola-oil", "capsicum-frutescens-fruit-extract", "iron-oxides-(ci-77492)", "polyglyceryl-2-triisostearate", "zingiber-officinale-(ginger)-root-oil", "limonene", "pentaerythrityl-tetra-di-t-butyl-hydroxyhydrocinnamate", "anemarrhena-asphodeloides-root-extract", "tocopherol"],
+    "function_claims": ["plumping", "lip-volumizing", "upper-lip-definition", "smoothing", "natural-looking-fullness", "filler-dupe", "instant-results", "non-swollen-plump-appearance"],
+    "ai_tags": ["car-confessional-format", "real-time-trial-vlog", "skeptic-to-believer-arc", "stranger-reaction-social-proof", "macro-lip-reveal", "k-beauty-authority-borrow", "thin-lips-insecurity-targeting", "ugc-style", "category-comparison-hook", "foryoupage-referral-framing"]
+  },
+  {
+    "id": "ac8a89b6-25e5-427f-9b67-72b290a6dae7",
+    "filename": "7636226006994455822.mp4",
+    "brand": "Dr. Melaxin",
+    "product": "Gifted Collagen Boost Set",
+    "product_category": ["skin-care-kits"],
+    "active_ingredients_note": "Full INCI deck was previously dumped wholesale into active_ingredients — exactly the kind of behavior Slice 9 STEP 3 spelling-correction-only wording was meant to prevent. After backfill, expect a curated subset (only ingredients the creator actually mentions). Pre-backfill array preserved in active_ingredients_pre_backfill.",
+    "active_ingredients_pre_backfill": ["purified-water", "glycerin", "butylene-glycol", "niacinamide", "2-hexanediol", "cetyl-ethylhexanoate", "carbomer", "cetearyl-olivate", "hydroxyacetophenone", "sorbitan-olivate", "tromethamine", "calcium-gluconate", "ethylhexylglycerin", "hydrolyzed-sponge", "adenosine", "cyanocobalamin", "disodium-edta", "prunus-amygdalus-dulcis-(sweet-almond)-fruit-extract", "tremella-fuciformis-extract", "tabebuia-avellanedae-bark-extract", "coffee-seed-extract", "hydrolyzed-hyaluronic-acid", "hydrolyzed-extensin", "soluble-collagen", "glyceryl-stearate-se", "ethylhexyl-palmitate", "dipropylene-glycol", "propanediol", "boron-nitride", "polyglyceryl-10-oleate", "trehalose", "glyceryl-25-pca-isostearate", "hydrogenated-lecithin", "zea-mays-(corn)-kernel-extract", "eriobotrya-japonica-leaf-extract", "fragrance", "hyaluronic-acid", "sodium-hyaluronate", "mentha-viridis-extract", "fructan", "alpha-arbutin", "glucose", "sodium-glycerophosphate", "hydrolyzed-elastin", "potassium-magnesium-aspartate", "magnesium-gluconate", "caprylyl-glycol", "nicotinoyl-dipeptide-23", "carrageenan", "ceratonia-siliqua-gum", "pentylene-glycol", "polyglyceryl-10-laurate", "guar-gum", "cellulose-gum", "pinus-densiflora-leaf-extract", "ethylhexanediol", "hexylene-glycol", "potassium-chloride", "allantoin", "sucrose", "chlorphenesin", "calcium-lactate", "illicium-verum-extract", "calcium-chloride", "dipotassium-glycyrrhizate", "chicory-root-oligosaccharides", "arginine", "mica", "titanium-dioxide", "hydrolyzed-collagen", "gluconolactone", "red-iron-oxide", "sodium-benzoate", "tin-oxide", "caesalpinia-spinosa-gum", "caprylic/capric-triglyceride", "polyglyceryl-2-triisostearate", "polyethylene", "microcrystalline-wax", "octyldodecanol", "triethylhexanoin", "limnanthes-alba-seed-oil", "macadamia-integrifolia-seed-oil", "olea-europaea-fruit-oil", "persea-gratissima-oil", "simmondsia-chinensis-seed-oil", "eclipta-prostrata-extract", "eclipta-prostrata-leaf-extract", "oil-soluble-licorice-extract", "moringa-oleifera-seed-oil", "hydroxypropyl-methylce"],
+    "function_claims": ["anti-aging", "conditioning", "dark-circles", "smoothening", "collagen-boost-and-pore-tightening"],
+    "ai_tags": ["mature-female-audience", "ugc-style", "anti-procedure-positioning", "multi-product-routine-walkthrough", "before-after-demo", "procedure-cost-anchoring", "confessional-talking-head", "korean-beauty-authority", "social-proof-via-sell-out-history", "gifting-angle"]
+  }
+]
