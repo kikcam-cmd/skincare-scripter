@@ -59,7 +59,7 @@ Both got short `main_ingredients` lists; the project's positioning may shift fro
 - ✓ Insurance dump at `db/backfill/0012_pre_rerun.json` (the dropped pre-backfill values, in case any AI-derived field needs forensic comparison).
 - ✓ Manual TikTok-shop category stamp `moisturizers-and-mists` on `d5240f30` re-applied post-backfill (Claude can't derive it from video content).
 
-**Last updated:** 2026-05-29 (Phase 2 Slice 0 shipped + smoke-tested with 4 drafts; Slice 0.1 framework-lift instruction; Slice 0.2 auth model finalized as public-scripter / admin-backend — /scripts/new + /scripts/[id] + /api/scripts/* open, everything else admin-only via APP_PASSWORD)
+**Last updated:** 2026-05-29 (Phase 2 Slice 0 + 0.1 + 0.2 shipped; pause point for tester feedback collection — manual step remaining: upload Cialdini markdown to /knowledge)
 
 ## Read these in order
 
@@ -119,41 +119,42 @@ Numbered list from `PLAN.md` "Risks & open questions". Resolutions noted; left h
 
 ## Next concrete action
 
-**Build Phase 2 Slice 0 — script-gen prototype.** Single-user testbed behind the existing `proxy.ts` Basic Auth gate. No auth retrofit, no `profiles` table, no multi-tenancy — those are pre-prod gates, not pre-testing gates. The whole point is to get a script-gen surface running so Cameron can iterate on retrieval shape + prompt wording empirically.
+**Public script-gen is live; collect tester feedback.** Slice 0 + Slice 0.1 (framework-lift instruction) + Slice 0.2 (public-scripter / admin-backend split) all shipped. The script-gen surface is open at https://skincare-scripter.vercel.app/scripts/new (no auth). `/scripts` drafts list + every other backend surface stays admin-only behind `APP_PASSWORD`. Latest commit `378aa65`.
 
-### Slice 0 scope (sketch — confirm contract with Cameron first)
+### Manual step remaining
 
-- **Page:** `/scripts` (form) + `/scripts/[id]` (result). Form = product picker (reuse upload dropdown), creator_gender 3-button toggle, intent textarea ("viral hook ideas" / "before-after demo angle" / "comment-reply CTA" / free-text), Generate button.
-- **API:** `POST /api/scripts/generate` — Node runtime, `maxDuration ~120`. Accepts `{ product_id, intent, creator_gender }`. Inserts `script_drafts` row (status='retrieving'), runs retrieval + Claude in same lifetime via `after()` from `next/server`, persists result.
-- **Retrieval:** `searchCorpus(intent, { product_name, creator_gender })` from `lib/search/query.ts` — already supports product filter. Top-k = 20 (richer than `/search`'s 10). Knowledge chunks (Cialdini) included naturally via existing rank.
-- **LLM:** Claude Sonnet 4.6, structured tool-call output. **Synthesize-don't-imitate prompt:** *"Ground in these patterns; do not reproduce any phrase verbatim; cite which video taught you which lever."* Same wording-risk shape as Slice 9's `canonical_ingredients` instruction — likely the load-bearing prompt design call.
-- **Output shape (default candidate, confirm):** single structured script — hook / problem / twist / solution / cta + tonality + pacing_notes + visual_direction + ai_tags + citations[{ chunk_id, kind, text_excerpt }]. From PLAN_PHASE2 §2.3 candidate.
-- **DB:** `script_drafts` migration (`0014_script_drafts.sql`) — drop the `owner_id` + RLS for prototype; add back when auth lands. Other columns per PLAN_PHASE2 §4.
-- **Polish (later slices):** auth retrofit + audit cleanup (PLAN_PHASE2 §8 "real" Slice 1), variants, iterative refinement, proxy.ts cutover. None of that gates testing.
+- **Upload `docs/knowledge-seed/cialdini-principles.md` to `/knowledge`** (admin path, paste-text or file-upload). Source label: `Cialdini - Principles`. Without this, the Slice 0.1 framework-lift instruction has nothing principle-tight to bind to — the original Cialdini PDF chunks were 2,900-char narrative slices (firefly mating metaphors, Amway BUG case studies) which is why citation rate sat at 6% in the 4-draft smoke test. The new markdown is `##`-heading-per-principle so the chunker tags each chunk with `section_label = principle name`, giving Claude clean anchors.
 
-### Open non-blockers worth filing if surfaced during prototype iteration
+### What to watch in tester drafts
 
+- **Tool-classification accuracy.** Is Claude routing intents correctly to `hook_ideas` / `full_script` / `demo_angle` / `freeform`? Specifically watch whether "X with before-after" routes to `full_script` (embedded demo, current behavior) or to `demo_angle` (treatment-first). Test 3 was deliberately left as full_script per advisor — re-evaluate if testers complain.
+- **Cialdini cite rate post-markdown-upload.** Baseline was 6% (1/16 retrieved Cialdini chunks cited). The framework-lift instruction *requires* ≥1 framework-cited element per draft when knowledge is present in grounding. Expect step-change.
+- **Angle diversity per product.** Watch whether the framework-lift instruction actually introduces angles the source corpus doesn't already do, or whether Claude tokenistically cites a framework on an already-corpus-flavored hook.
+- **`[NEEDS CREATOR INPUT]` markers.** Should fire when corpus genuinely can't carry a beat (e.g. live price, current sale status). Should NOT fire as a hedge on every uncertain claim.
+- **Output kinds testers want that don't exist.** Regenerate-single-beat, variants, comment-reply-format-specific, etc. — log these without building.
+
+### Open non-blockers worth filing if surfaced
+
+- **Cialdini cite rate doesn't lift after markdown upload.** If still <30% post-upload, the issue is system-prompt attention, not chunk content — escalate to reordering grounding (knowledge first, video second) or a more directive instruction.
+- **Prompt caching is off.** `cache_control: { type: "ephemeral" }` on the system block would save ~90% on the 1800-token system prompt for repeat calls within 5 min. Free cost win when tester usage scales. Not urgent at current volume.
+- **Rich-product kind-starvation.** PDRN Multi Balm (5 videos, 51 chunks) draft missed `authenticity_signals` and `visual_style_notes` entirely because top-16 semantic ranking biased toward `buyer_psych_levers` + `gender_specific_notes`. Only matters for products with 3+ videos. Fix would be per-kind floor in retrieval.
+- **`gender_specific_notes` undercited on gendered drafts** (1/3 cite rate when creator_gender=female). System prompt says "safe to apply when gender matches" but Claude isn't lifting them as often as expected. Watch — may resolve once framework-lift instruction redistributes attention.
+- **Public scripter abuse / cost exposure.** Per-generation cost ~$0.075; a malicious script could burn $135/hr. Mitigations: per-IP rate limit in proxy.ts (Vercel KV or in-memory), or watch Anthropic dashboard for spikes. Cameron's call to ship without rate limit; revisit if URL leaks beyond invite circle.
 - **Catalog broadening.** Dr. Dent + Medicube Deodorant push past pure skincare. If script-gen spans these, revisit positioning (skincare-scripter vs K-beauty-affiliate-scripter).
-- **Filter-dimension graduates.** Per [[feedback-skincare-scripter-filter-suggestions]], watch the post-backfill `ai_tags` for clusters that should become structured filter dimensions (e.g. "nurse-creator-authority", "filler-dupe-positioning", "tiktok-shop-orange-card-cta" all repeat across 3+ videos).
-- **Per-product structural-chunk density.** A product with low chunk count (1 video × N kinds) may not have enough pattern fuel to synthesize. Measure when iterating — informs which products the invite-only beta can launch with.
-- **Residual Whisper drift (acceptable, document only).** `f5d9a290` opening still hears `Kareem's` instead of `Koreans` (acoustic ambiguity Whisper doesn't bridge); 1× `Mellaxin` slip on the same video. Cameron's principle: don't force.
+- **Filter-dimension graduates.** Per [[feedback-skincare-scripter-filter-suggestions]], watch the `ai_tags` for clusters that should become structured filter dimensions (e.g. "nurse-creator-authority", "filler-dupe-positioning", "tiktok-shop-orange-card-cta" repeat across 3+ videos).
+- **Residual Whisper drift (acceptable, document only).** `f5d9a290` opening still hears `Kareem's` instead of `Koreans` (acoustic ambiguity Whisper doesn't bridge); 1× `Mellaxin` slip on the same video.
 
 ---
 
-**Already pre-decided in PLAN_PHASE2 (no Cameron action needed):**
-- §2.4 `proxy.ts` disposition — keep as outer gate through Slice 0 + the invite-only beta, remove in a dedicated cutover slice after real auth is verified
-- §2.5 `target_creator_gender` — `profiles` default + per-request override (Slice 0 skips the profile, just takes per-request)
-- §2.7 Pricing — invite-only beta, Cameron eats cost, Sonnet 4.6 throughout
-- §2.8 Phase 3 perf feedback stays out of Phase 2
+**Phase 2 §2.1 (multi-tenancy) + §2.2 (auth provider)** remain gated until tester feedback validates the brain is good enough to invite real affiliates with per-user draft scoping. The public-scripter / admin-backend split shipped in Slice 0.2 is the prototype-grade equivalent.
 
 **Resolved by Slice 0 framing (2026-05-29):**
-- §2.3 input shape: **product picker + free-text intent + creator_gender override.** Structured-form-with-free-text-context hybrid. Pure structured form was the §2.3 recommendation; Cameron's articulation of real queries ("I want a script for Medicube's Multi Balm" / "viral hook ideas for the Spicy Lip Plumper") is structured-plus-intent, not pure structure.
-- §2.3 output shape: **single structured script (Slice 0)**, variants deferred to a follow-up slice. Same v0-style "smallest E2E" discipline.
-
-**Still gating (resolve when prototype validates the brain is good enough to open to real affiliates):**
-- §2.1 multi-tenancy (likely Branch A — shared corpus, per-user drafts)
-- §2.2 auth provider (likely Supabase Auth with OTP codes)
-- §2.3 input refinement based on Slice 0 usage (intent chips vs free-text, etc.)
+- §2.3 input shape: **product picker + free-text intent + creator_gender override.** Structured-form-with-free-text-context hybrid. Cameron's articulation of real queries ("I want a script for Medicube's Multi Balm" / "viral hook ideas for the Spicy Lip Plumper") is structured-plus-intent, not pure structure.
+- §2.3 output shape: **caller picks per request** via discriminated tool union. Claude classifies intent and calls `submit_hook_ideas` / `submit_full_script` / `submit_demo_angle` / `submit_freeform`. `tool_choice: "any"` forces selection.
+- §2.4 `proxy.ts` disposition — admin gate on `/scripts` list + all backend pages; public on `/scripts/new` + `/scripts/[id]` + `/api/scripts/*`. Real auth (Supabase Auth) lands in Slice 1.
+- §2.5 `target_creator_gender` — per-request override (no profiles table yet).
+- §2.7 Pricing — invite-link beta, Cameron eats cost, Sonnet 4.6 throughout.
+- §2.8 Phase 3 perf feedback stays out of Phase 2.
 
 Open follow-ups from v0 (non-blocking, all could roll into Phase 2 if
 they bite):
